@@ -7,6 +7,9 @@ export const load = async ({ fetch }: { fetch: typeof window.fetch }) => {
   const par = [48.7969, 2.2419, 48.9164, 2.4434];
   const rome = [41.7749, 12.3301, 42.007, 12.6518];
   const york = [40.6442, -74.1591, 40.9706, -73.7306];
+  const bkok = [13.7057, 100.4528, 13.8014, 100.5629];
+
+  //min lat, min long, max lat, max long
 
   const bbox = vie;
   const bstring = `${bbox[0]}, ${bbox[1]}, ${bbox[2]}, ${bbox[3]}`;
@@ -17,10 +20,9 @@ export const load = async ({ fetch }: { fetch: typeof window.fetch }) => {
       "data=" +
       encodeURIComponent(`
         [bbox:${bstring}]
-        [out:json]
-        [timeout:90];
-        way(${bstring})
-        [highway ~ "(motorway|trunk|primary|secondary|tertiary|road|residential|.*_link)"];
+        [out:json]; 
+        (way[highway ~ "(motorway|trunk|primary|secondary|tertiary|road|residential|.*_link)"];);
+        (._;>;); 
         out geom;
         `),
   }).then((data) => data.json());

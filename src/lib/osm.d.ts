@@ -1,4 +1,4 @@
-type Element = Node | Way;
+type Element = NodeElement | WayElement;
 
 export type Coord = {
   lat: number;
@@ -16,21 +16,19 @@ export type OsmObject = {
   elements: Element[];
 };
 
-export type Node = {
+export type NodeElement = {
   type: "node";
   id: number;
   lat: number;
   lon: number;
-  tags: Tag;
 };
 
-export type Way = {
+export type WayElement = {
   type: "way";
   id: number;
-  nodes: Node[];
+  nodes: number[];
   geometry: Coord[];
   bounds: Bounds;
-  tags: Tag;
 };
 
 type Tag = {

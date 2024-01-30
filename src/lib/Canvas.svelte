@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Bounds, Coord, Element, OsmObject, Way } from "./osm";
+  import type { Bounds, OsmObject } from "./osm";
+  import { Graph, System } from "./graph";
   export let osm: OsmObject;
   export let bbox: Bounds;
 
@@ -33,15 +34,21 @@
     offset.x = -canvas.width / 2 + initialMapScaling / 2;
     offset.y = -canvas.height / 2 + initialMapScaling / 1.5;
 
+    const system = new System(bbox, canvas.height, initialMapScaling);
+    const graph = new Graph(osm.elements, system);
+
     const animate = () => {
       if (!ctx || !canvas) return;
       requestAnimationFrame(animate);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      handleMouse();
-      parseElements(osm.elements);
+      handleMouse(system);
+      graph.drawEdges(ctx);
+      graph.drawNodes(ctx);
     };
 
+    // graph.drawNodes(ctx);
+    // graph.drawEdges(ctx);
     animate();
   });
 
@@ -52,72 +59,23 @@
     canvas.style.height = container.offsetHeight + "px";
   };
 
-  const normalizeNumber = (
-    number: number,
-    range: { min: number; max: number },
-  ) => {
-    return ((number - range.min) / (range.max - range.min)) * initialMapScaling;
-  };
-
-  const normalizeCoord = (coord: Coord) => {
-    const latRange = { min: bbox.minlat, max: bbox.maxlat };
-    const lonRange = { min: bbox.minlon, max: bbox.maxlon };
-    return {
-      lat: canvas.height - normalizeNumber(coord.lat, latRange),
-      lon: normalizeNumber(coord.lon, lonRange),
-    };
-  };
-
-  const convertToScreenSpace = (coord: Coord) => {
-    return {
-      x: (coord.lon - offset.x) * scale,
-      y: (coord.lat - offset.y) * scale,
-    };
+  const convertToScreenSpace = (x: number, y: number) => {
+    return [(x - offset.x) * scale, (y - offset.y) * scale];
   };
 
   const convertToWorldSpace = (coord: { x: number; y: number }) => {
-    return {
-      lon: coord.x / scale + offset.x,
-      lat: coord.y / scale + offset.y,
-    };
+    return [coord.x / scale + offset.x, coord.y / scale + offset.y];
   };
 
-  const parseElements = (elements: Element[]) => {
-    if (!ctx) return;
-    ctx.beginPath();
-
-    for (const element of elements) {
-      if (element.type === "way") {
-        drawWay(element);
-      }
-    }
-
-    ctx.stroke();
-  };
-
-  const drawWay = (way: Way) => {
-    if (!ctx) return;
-    let begin = true;
-
-    for (const point of way.geometry) {
-      const coords = convertToScreenSpace(normalizeCoord(point));
-
-      if (begin) {
-        ctx.moveTo(coords.x, coords.y);
-        begin = false;
-      } else {
-        ctx.lineTo(coords.x, coords.y);
-      }
-    }
-  };
-
-  const handleMouse = () => {
+  const handleMouse = (system: System) => {
     if (mouse.isRightClicked) {
       offset.x -= (mouse.x - mouse.initx) / scale;
       offset.y -= (mouse.y - mouse.inity) / scale;
       mouse.initx = mouse.x;
       mouse.inity = mouse.y;
     }
+
+    system.updateMouse(mouse);
   };
 
   const handleMouseDown = (e: MouseEvent) => {
@@ -156,7 +114,10 @@
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const mouseBeforeZoom = convertToWorldSpace({ x: mouse.x, y: mouse.y });
+    const [beforeZoomX, beforeZoomY] = convertToWorldSpace({
+      x: mouse.x,
+      y: mouse.y,
+    });
 
     if (e.deltaY > 0) {
       scale *= 0.9;
@@ -164,9 +125,12 @@
       scale *= 1.1;
     }
 
-    const mouseAfterZoom = convertToWorldSpace({ x: mouse.x, y: mouse.y });
-    offset.x += mouseBeforeZoom.lon - mouseAfterZoom.lon;
-    offset.y += mouseBeforeZoom.lat - mouseAfterZoom.lat;
+    const [afterZoomX, afterZoomY] = convertToWorldSpace({
+      x: mouse.x,
+      y: mouse.y,
+    });
+    offset.x += beforeZoomX - afterZoomX;
+    offset.y += beforeZoomY - afterZoomY;
   };
 </script>
 
