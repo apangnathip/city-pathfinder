@@ -302,7 +302,6 @@ class Edge {
     this.active = false;
   }
 
-  // Full path is not yet drawn due to connective issues
   draw(ctx: CanvasRenderingContext2D) {
     if (this.active) {
       ctx.strokeStyle = "red";
@@ -315,6 +314,13 @@ class Edge {
 
     ctx.beginPath();
     ctx.moveTo(aCoords.x, aCoords.y);
+
+    for (const id of this.path) {
+      const pathNode = this.graph.nodes.get(id);
+      if (!pathNode) continue;
+      ctx.lineTo(pathNode.x, pathNode.y);
+    }
+
     ctx.lineTo(bCoords.x, bCoords.y);
     ctx.stroke();
   }
