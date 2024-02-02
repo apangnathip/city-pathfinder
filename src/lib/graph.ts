@@ -42,6 +42,8 @@ export class Graph {
   nodes: Map<number, Node>;
   pathNodePos: Map<number, Coord>;
   travelled: Map<number, boolean>;
+  activeNodes: number[];
+  isNodeFound: boolean;
 
   constructor(elements: Element[], system: System) {
     this.system = system;
@@ -49,6 +51,8 @@ export class Graph {
     this.nodes = new Map();
     this.pathNodePos = new Map();
     this.travelled = new Map();
+    this.activeNodes = [];
+    this.isNodeFound = false;
 
     const linkCounter = new Map();
 
@@ -67,7 +71,7 @@ export class Graph {
     for (const element of elements) {
       if (element.type === "node") {
         if (!this.nodes.has(element.id)) {
-          this.nodes.set(element.id, new Node(element, this.system));
+          this.nodes.set(element.id, new Node(element, this));
         }
         if (linkCounter.get(element.id) > 1) {
           this.addNodeToAdj(element.id);
@@ -79,15 +83,15 @@ export class Graph {
       if (element.type === "way") {
         let path = [];
         let start = this.nodes.get(element.nodes[0]);
-        const end = this.nodes.get(element.nodes[element.nodes.length - 1]);
+        const endID = element.nodes[element.nodes.length - 1];
+        const end = this.nodes.get(endID);
         if (!start || !end) continue;
 
         for (const nodeID of element.nodes.slice(1, -1)) {
           const currentNode = this.nodes.get(nodeID);
+          if (!currentNode) continue;
 
           if (linkCounter.get(nodeID) > 1) {
-            if (!currentNode) continue;
-
             const edge = new Edge(start, currentNode, path);
             this.addEdge(edge);
 
@@ -101,6 +105,41 @@ export class Graph {
         const endEdge = new Edge(start, end, path);
         this.addEdge(endEdge);
       }
+    }
+  }
+
+  async pathFind() {
+    const [a, b] = this.activeNodes;
+    this.DFS(a, b);
+  }
+
+  DFS(curr: number, target: number, travelled = new Map(), path: Edge[] = []) {
+    if (curr === target || this.isNodeFound) {
+      console.log("FOUND!");
+      this.isNodeFound = true;
+      return path;
+    }
+
+    travelled.set(curr, true);
+
+    const adj = this.adjList.get(curr);
+    if (!adj) return;
+
+    for (const [id, edge] of adj) {
+      if (travelled.has(id)) continue;
+      edge.active = true;
+      path.push(edge);
+      setTimeout(() => {
+        this.DFS(id, target, travelled, path);
+      }, 250);
+    }
+  }
+
+  addActiveNode(id: number) {
+    this.activeNodes.push(id);
+    if (this.activeNodes.length > 2) this.activeNodes.shift();
+    if (this.activeNodes.length === 2) {
+      this.pathFind();
     }
   }
 
@@ -118,11 +157,7 @@ export class Graph {
       const node = this.nodes.get(id);
       if (!node) continue;
 
-      const activeID = node.update();
-      if (activeID) {
-        console.log(this.adjList.get(activeID));
-      }
-
+      node.update();
       node.draw(ctx);
     }
   }
@@ -140,19 +175,21 @@ export class Graph {
 }
 
 class Node {
-  system: System;
+  graph: Graph;
   id: number;
   x: number;
   y: number;
+  active: boolean;
   radius: number;
   color: string;
   hoverRadius = 2;
 
-  constructor(nodeElement: NodeElement, system: System) {
-    this.system = system;
+  constructor(nodeElement: NodeElement, graph: Graph) {
+    this.id = nodeElement.id;
+    this.graph = graph;
     this.radius = 5;
     this.color = "black";
-    this.id = nodeElement.id;
+    this.active = false;
 
     const coords = this.normalizeCoord(nodeElement);
     this.x = coords.x;
@@ -178,32 +215,37 @@ class Node {
     return {
       x: this.normalizeNumber(
         nodeElement.lon,
-        this.system.xRange,
-        this.system.initialMapScaling,
+        this.graph.system.xRange,
+        this.graph.system.initialMapScaling,
       ),
       y:
-        this.system.canvasHeight -
+        this.graph.system.canvasHeight -
         this.normalizeNumber(
           nodeElement.lat,
-          this.system.yRange,
-          this.system.initialMapScaling,
+          this.graph.system.yRange,
+          this.graph.system.initialMapScaling,
         ),
     };
   }
 
   update() {
     const distance = Math.hypot(
-      this.system.mouse.x - this.x,
-      this.system.mouse.y - this.y,
+      this.graph.system.mouse.x - this.x,
+      this.graph.system.mouse.y - this.y,
     );
+
+    if (this.graph.activeNodes.includes(this.id)) {
+      this.color = "green";
+      this.radius = 10;
+      return;
+    }
 
     if (distance < 10) {
       this.color = "red";
-      this.radius = 10;
 
-      if (this.system.mouse.isLeftClicked) {
+      if (this.graph.system.mouse.isLeftClicked) {
         console.log(this.id, this.x, this.y);
-        return this.id;
+        this.graph.addActiveNode(this.id);
       }
     } else {
       this.color = "black";
@@ -216,15 +258,23 @@ class Edge {
   nodeA: Node;
   nodeB: Node;
   path: number[];
+  active: boolean;
 
   constructor(nodeA: Node, nodeB: Node, path: number[]) {
     this.nodeA = nodeA;
     this.nodeB = nodeB;
     this.path = path;
+    this.active = false;
   }
 
   // Full path is not yet drawn due to connective issues
   draw(ctx: CanvasRenderingContext2D) {
+    if (this.active) {
+      ctx.strokeStyle = "red";
+    } else {
+      ctx.strokeStyle = "black";
+    }
+
     ctx.beginPath();
     ctx.moveTo(this.nodeA.x, this.nodeA.y);
     ctx.lineTo(this.nodeB.x, this.nodeB.y);

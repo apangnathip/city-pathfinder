@@ -42,9 +42,9 @@
       requestAnimationFrame(animate);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      handleMouse(system);
       graph.drawEdges(ctx);
       graph.drawNodes(ctx);
+      handleMouse(system);
     };
 
     // graph.drawNodes(ctx);
@@ -68,12 +68,16 @@
   };
 
   const handleMouse = (system: System) => {
-    if (mouse.isRightClicked) {
-      offset.x -= (mouse.x - mouse.initx) / scale;
-      offset.y -= (mouse.y - mouse.inity) / scale;
-      mouse.initx = mouse.x;
-      mouse.inity = mouse.y;
+    if (mouse.isLeftClicked) {
+      mouse.isLeftClicked = false;
     }
+
+    // if (mouse.isRightClicked) {
+    //   offset.x -= (mouse.x - mouse.initx) / scale;
+    //   offset.y -= (mouse.y - mouse.inity) / scale;
+    //   mouse.initx = mouse.x;
+    //   mouse.inity = mouse.y;
+    // }
 
     system.updateMouse(mouse);
   };
