@@ -19,7 +19,7 @@
 
   const mouse = {
     isLeftClicked: false,
-    isRightClicked: false,
+    isRightHeld: false,
     initx: 0,
     inity: 0,
     x: 0,
@@ -88,7 +88,7 @@
         mouse.isLeftClicked = true;
         break;
       case 2:
-        mouse.isRightClicked = true;
+        mouse.isRightHeld = true;
         mouse.initx = e.clientX;
         mouse.inity = e.clientY;
         break;
@@ -101,7 +101,7 @@
         mouse.isLeftClicked = false;
         break;
       case 2:
-        mouse.isRightClicked = false;
+        mouse.isRightHeld = false;
         break;
     }
   };
@@ -113,7 +113,7 @@
 
   const handleMouseLeave = () => {
     mouse.isLeftClicked = false;
-    mouse.isRightClicked = false;
+    mouse.isRightHeld = false;
   };
 
   const handleWheel = (e: WheelEvent) => {

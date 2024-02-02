@@ -7,6 +7,9 @@ type Mouse = {
   x: number;
   y: number;
   isLeftClicked: boolean;
+  isRightHeld: boolean;
+  initx: number;
+  inity: number;
 };
 
 export class System {
@@ -15,17 +18,33 @@ export class System {
   xRange: Range;
   yRange: Range;
   mouse: Mouse;
+  offset: { x: number; y: number };
 
   constructor(bbox: Bounds, canvasHeight: number, initialMapScaling: number) {
     this.canvasHeight = canvasHeight;
-    this.mouse = { x: 0, y: 0, isLeftClicked: false };
     this.initialMapScaling = initialMapScaling;
     this.xRange = { min: bbox.minlon, max: bbox.maxlon };
     this.yRange = { min: bbox.minlat, max: bbox.maxlat };
+    this.offset = { x: 0, y: 0 };
+    this.mouse = {
+      x: 0,
+      y: 0,
+      isLeftClicked: false,
+      isRightHeld: false,
+      initx: 0,
+      inity: 0,
+    };
   }
 
   updateMouse(mouse: Mouse) {
     this.mouse = mouse;
+
+    if (this.mouse.isRightHeld) {
+      this.offset.x += this.mouse.x - this.mouse.initx;
+      this.offset.y += this.mouse.y - this.mouse.inity;
+      this.mouse.initx = this.mouse.x;
+      this.mouse.inity = this.mouse.y;
+    }
   }
 
   randColor() {
@@ -33,6 +52,14 @@ export class System {
     const g = Math.floor(Math.random() * 255);
     const b = Math.floor(Math.random() * 255);
     return `rgb(${r},${g},${b})`;
+  }
+
+  applyOffset(x: number, y: number) {
+    return { x: x + this.offset.x, y: y + this.offset.y };
+  }
+
+  removeOffset(x: number, y: number) {
+    return { x: x - this.mouse.x, y: y - this.mouse.y };
   }
 }
 
@@ -73,6 +100,8 @@ export class Graph {
         if (!this.nodes.has(element.id)) {
           this.nodes.set(element.id, new Node(element, this));
         }
+
+        // disregard nodes not referenced by a way other than its own
         if (linkCounter.get(element.id) > 1) {
           this.addNodeToAdj(element.id);
         }
@@ -81,20 +110,22 @@ export class Graph {
 
     for (const element of elements) {
       if (element.type === "way") {
+        const endID = element.nodes[element.nodes.length - 1];
+
+        const end = this.nodes.get(endID);
         let path = [];
         let start = this.nodes.get(element.nodes[0]);
-        const endID = element.nodes[element.nodes.length - 1];
-        const end = this.nodes.get(endID);
+
         if (!start || !end) continue;
 
         for (const nodeID of element.nodes.slice(1, -1)) {
           const currentNode = this.nodes.get(nodeID);
           if (!currentNode) continue;
 
+          // split ways at intersection into separate edges
           if (linkCounter.get(nodeID) > 1) {
-            const edge = new Edge(start, currentNode, path);
+            const edge = new Edge(start, currentNode, path, this);
             this.addEdge(edge);
-
             start = currentNode;
             path = [];
           } else {
@@ -102,13 +133,13 @@ export class Graph {
           }
         }
 
-        const endEdge = new Edge(start, end, path);
+        const endEdge = new Edge(start, end, path, this);
         this.addEdge(endEdge);
       }
     }
   }
 
-  async pathFind() {
+  pathFind() {
     const [a, b] = this.activeNodes;
     this.DFS(a, b);
   }
@@ -127,10 +158,10 @@ export class Graph {
 
     for (const [id, edge] of adj) {
       if (travelled.has(id)) continue;
-      edge.active = true;
       path.push(edge);
+      edge.active = true;
       setTimeout(() => {
-        this.DFS(id, target, travelled, path);
+        return this.DFS(id, target, travelled, path);
       }, 250);
     }
   }
@@ -156,7 +187,6 @@ export class Graph {
     for (const id of this.adjList.keys()) {
       const node = this.nodes.get(id);
       if (!node) continue;
-
       node.update();
       node.draw(ctx);
     }
@@ -185,8 +215,8 @@ class Node {
   hoverRadius = 2;
 
   constructor(nodeElement: NodeElement, graph: Graph) {
-    this.id = nodeElement.id;
     this.graph = graph;
+    this.id = nodeElement.id;
     this.radius = 5;
     this.color = "black";
     this.active = false;
@@ -197,8 +227,10 @@ class Node {
   }
 
   draw(ctx: CanvasRenderingContext2D) {
+    const { x, y } = this.graph.system.applyOffset(this.x, this.y);
+
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(x, y, this.radius, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
   }
@@ -229,9 +261,10 @@ class Node {
   }
 
   update() {
+    const { x, y } = this.graph.system.applyOffset(this.x, this.y);
     const distance = Math.hypot(
-      this.graph.system.mouse.x - this.x,
-      this.graph.system.mouse.y - this.y,
+      this.graph.system.mouse.x - x,
+      this.graph.system.mouse.y - y,
     );
 
     if (this.graph.activeNodes.includes(this.id)) {
@@ -255,12 +288,14 @@ class Node {
 }
 
 class Edge {
+  graph: Graph;
   nodeA: Node;
   nodeB: Node;
   path: number[];
   active: boolean;
 
-  constructor(nodeA: Node, nodeB: Node, path: number[]) {
+  constructor(nodeA: Node, nodeB: Node, path: number[], graph: Graph) {
+    this.graph = graph;
     this.nodeA = nodeA;
     this.nodeB = nodeB;
     this.path = path;
@@ -275,9 +310,12 @@ class Edge {
       ctx.strokeStyle = "black";
     }
 
+    const aCoords = this.graph.system.applyOffset(this.nodeA.x, this.nodeA.y);
+    const bCoords = this.graph.system.applyOffset(this.nodeB.x, this.nodeB.y);
+
     ctx.beginPath();
-    ctx.moveTo(this.nodeA.x, this.nodeA.y);
-    ctx.lineTo(this.nodeB.x, this.nodeB.y);
+    ctx.moveTo(aCoords.x, aCoords.y);
+    ctx.lineTo(bCoords.x, bCoords.y);
     ctx.stroke();
   }
 }
