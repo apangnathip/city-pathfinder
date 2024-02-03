@@ -10,20 +10,16 @@
   let canvas: HTMLCanvasElement;
   let container: HTMLElement;
   let ctx: CanvasRenderingContext2D | null;
-
-  let scale = 1;
-  let offset = {
-    x: 0,
-    y: 0,
-  };
+  let system: System;
 
   const mouse = {
+    x: 0,
+    y: 0,
     isLeftClicked: false,
     isRightHeld: false,
     initx: 0,
     inity: 0,
-    x: 0,
-    y: 0,
+    scrollScale: 1,
   };
 
   onMount(async () => {
@@ -31,10 +27,7 @@
     ctx = canvas.getContext("2d");
     if (!ctx || !canvas) return;
 
-    offset.x = -canvas.width / 2 + initialMapScaling / 2;
-    offset.y = -canvas.height / 2 + initialMapScaling / 1.5;
-
-    const system = new System(bbox, canvas.height, initialMapScaling);
+    system = new System(bbox, canvas.height, initialMapScaling);
     const graph = new Graph(osm.elements, system);
 
     const animate = () => {
@@ -43,12 +36,10 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       graph.drawEdges(ctx);
-      graph.drawNodes(ctx);
+      graph.drawNodes(ctx, true);
       handleMouse(system);
     };
 
-    // graph.drawNodes(ctx);
-    // graph.drawEdges(ctx);
     animate();
   });
 
@@ -59,26 +50,10 @@
     canvas.style.height = container.offsetHeight + "px";
   };
 
-  const convertToScreenSpace = (x: number, y: number) => {
-    return [(x - offset.x) * scale, (y - offset.y) * scale];
-  };
-
-  const convertToWorldSpace = (coord: { x: number; y: number }) => {
-    return [coord.x / scale + offset.x, coord.y / scale + offset.y];
-  };
-
   const handleMouse = (system: System) => {
     if (mouse.isLeftClicked) {
       mouse.isLeftClicked = false;
     }
-
-    // if (mouse.isRightClicked) {
-    //   offset.x -= (mouse.x - mouse.initx) / scale;
-    //   offset.y -= (mouse.y - mouse.inity) / scale;
-    //   mouse.initx = mouse.x;
-    //   mouse.inity = mouse.y;
-    // }
-
     system.updateMouse(mouse);
   };
 
@@ -118,23 +93,22 @@
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const [beforeZoomX, beforeZoomY] = convertToWorldSpace({
-      x: mouse.x,
-      y: mouse.y,
-    });
+    const prezoom = system.removeOffset(mouse.x, mouse.y);
 
     if (e.deltaY > 0) {
-      scale *= 0.9;
+      if (mouse.scrollScale > 0.1) {
+        mouse.scrollScale *= 0.8;
+      }
     } else {
-      scale *= 1.1;
+      if (mouse.scrollScale < 10) {
+        mouse.scrollScale *= 1.25;
+      }
     }
 
-    const [afterZoomX, afterZoomY] = convertToWorldSpace({
-      x: mouse.x,
-      y: mouse.y,
-    });
-    offset.x += beforeZoomX - afterZoomX;
-    offset.y += beforeZoomY - afterZoomY;
+    // center zoom around cursor
+    const aftzoom = system.removeOffset(mouse.x, mouse.y);
+    system.offset.x -= prezoom.x - aftzoom.x;
+    system.offset.y -= prezoom.y - aftzoom.y;
   };
 </script>
 
