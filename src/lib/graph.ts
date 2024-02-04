@@ -216,6 +216,31 @@ export class Graph {
       }
     }
   }
+
+  getEdgePositions() {
+    const positions = [];
+
+    for (const [startID, adj] of this.adjList.entries()) {
+      const startNode = this.nodes.get(startID);
+      if (!startNode) continue;
+
+      for (const edge of adj.values()) {
+        positions.push(edge.nodeA.x, edge.nodeA.y);
+
+        for (let i = 0; i < edge.path.length; i++) {
+          const pathNode = this.nodes.get(edge.path[i]);
+          if (!pathNode) continue;
+
+          positions.push(pathNode.x, pathNode.y);
+          positions.push(pathNode.x, pathNode.y);
+        }
+
+        positions.push(edge.nodeB.x, edge.nodeB.y);
+      }
+    }
+
+    return positions;
+  }
 }
 
 class Node {
