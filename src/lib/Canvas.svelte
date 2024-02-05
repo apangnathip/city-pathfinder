@@ -4,12 +4,13 @@
   import { Graph, System } from "./graph";
   export let osm: OsmObject;
   export let bbox: Bounds;
+  import { initProgram } from "./shader";
 
   let initialMapScaling = 800;
 
   let canvas: HTMLCanvasElement;
   let container: HTMLElement;
-  let ctx: CanvasRenderingContext2D | null;
+  let gl: WebGL2RenderingContext;
   let system: System;
 
   const mouse = {
@@ -24,20 +25,51 @@
 
   onMount(async () => {
     resize();
-    ctx = canvas.getContext("2d");
-    if (!ctx || !canvas) return;
+    gl = canvas.getContext("webgl2")!;
+    if (!gl || !canvas) return;
 
     system = new System(bbox, canvas.height, initialMapScaling);
     const graph = new Graph(osm.elements, system);
 
-    const animate = () => {
-      if (!ctx || !canvas) return;
-      requestAnimationFrame(animate);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const program = initProgram(gl);
+    if (!program) return;
 
-      graph.drawEdges(ctx);
-      graph.drawNodes(ctx, true);
+    gl.useProgram(program);
+
+    const uniform = {
+      resolution: gl.getUniformLocation(program, "u_resolution"),
+      translation: gl.getUniformLocation(program, "u_translation"),
+      scale: gl.getUniformLocation(program, "u_scale"),
+      color: gl.getUniformLocation(program, "u_color"),
+    };
+
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
+    const positionAttribLoc = gl.getAttribLocation(program, "a_position");
+    gl.enableVertexAttribArray(positionAttribLoc);
+    gl.vertexAttribPointer(positionAttribLoc, 2, gl.FLOAT, false, 0, 0);
+
+    const positions = graph.getEdgePositions();
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(positions),
+      gl.DYNAMIC_DRAW,
+    );
+
+    const animate = () => {
+      if (!gl || !canvas) return;
+      requestAnimationFrame(animate);
+
       handleMouse(system);
+
+      gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
+      gl.uniform1f(uniform.scale, mouse.scrollScale);
+      gl.uniform2fv(uniform.translation, [system.offset.x, system.offset.y]);
+      gl.uniform4f(uniform.color, 0, 0, 0, 1);
+      gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+      gl.drawArrays(gl.LINES, 0, positions.length / 2);
     };
 
     animate();
@@ -54,7 +86,13 @@
     if (mouse.isLeftClicked) {
       mouse.isLeftClicked = false;
     }
-    system.updateMouse(mouse);
+
+    if (mouse.isRightHeld) {
+      system.offset.x += (mouse.x - mouse.initx) / mouse.scrollScale;
+      system.offset.y += (mouse.y - mouse.inity) / mouse.scrollScale;
+      mouse.initx = mouse.x;
+      mouse.inity = mouse.y;
+    }
   };
 
   const handleMouseDown = (e: MouseEvent) => {
@@ -81,6 +119,13 @@
     }
   };
 
+  const removeOffset = (x: number, y: number) => {
+    return {
+      x: x / mouse.scrollScale + system.offset.x,
+      y: y / mouse.scrollScale + system.offset.y,
+    };
+  };
+
   const handleMouseMove = (e: MouseEvent) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
@@ -93,7 +138,7 @@
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const prezoom = system.removeOffset(mouse.x, mouse.y);
+    const prezoom = removeOffset(mouse.x, mouse.y);
 
     if (e.deltaY > 0) {
       if (mouse.scrollScale > 0.1) {
@@ -106,7 +151,7 @@
     }
 
     // center zoom around cursor
-    const aftzoom = system.removeOffset(mouse.x, mouse.y);
+    const aftzoom = removeOffset(mouse.x, mouse.y);
     system.offset.x -= prezoom.x - aftzoom.x;
     system.offset.y -= prezoom.y - aftzoom.y;
   };
