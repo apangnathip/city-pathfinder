@@ -37,40 +37,6 @@ export class System {
       scrollScale: 0,
     };
   }
-
-  updateMouse(mouse: Mouse) {
-    this.mouse = mouse;
-
-    if (this.mouse.isRightHeld) {
-      this.offset.x +=
-        (this.mouse.x - this.mouse.initx) / this.mouse.scrollScale;
-      this.offset.y +=
-        (this.mouse.y - this.mouse.inity) / this.mouse.scrollScale;
-      this.mouse.initx = this.mouse.x;
-      this.mouse.inity = this.mouse.y;
-    }
-  }
-
-  randColor() {
-    const r = Math.floor(Math.random() * 255);
-    const g = Math.floor(Math.random() * 255);
-    const b = Math.floor(Math.random() * 255);
-    return `rgb(${r},${g},${b})`;
-  }
-
-  applyOffset(x: number, y: number) {
-    return {
-      x: (x + this.offset.x) * this.mouse.scrollScale,
-      y: (y + this.offset.y) * this.mouse.scrollScale,
-    };
-  }
-
-  removeOffset(x: number, y: number) {
-    return {
-      x: x / this.mouse.scrollScale + this.offset.x,
-      y: y / this.mouse.scrollScale + this.offset.y,
-    };
-  }
 }
 
 export class Graph {
@@ -193,30 +159,6 @@ export class Graph {
     this.adjList.get(edge.nodeB.id)?.set(edge.nodeA.id, edge);
   }
 
-  drawNodes(ctx: CanvasRenderingContext2D, activeOnly = false) {
-    for (const id of this.adjList.keys()) {
-      const node = this.nodes.get(id);
-      if (!node) continue;
-      const active = node.update();
-      if (activeOnly && active) {
-        node.draw(ctx);
-      } else if (!activeOnly) {
-        node.draw(ctx);
-      }
-    }
-  }
-
-  drawEdges(ctx: CanvasRenderingContext2D) {
-    for (const [startID, adj] of this.adjList.entries()) {
-      const startNode = this.nodes.get(startID);
-      if (!startNode) continue;
-
-      for (const edge of adj.values()) {
-        edge.draw(ctx);
-      }
-    }
-  }
-
   getEdgePositions() {
     const positions = [];
 
@@ -265,15 +207,6 @@ class Node {
     this.y = coords.y;
   }
 
-  draw(ctx: CanvasRenderingContext2D, activeOnly = false) {
-    const { x, y } = this.graph.system.applyOffset(this.x, this.y);
-
-    ctx.beginPath();
-    ctx.arc(x, y, this.radius, 0, Math.PI * 2);
-    ctx.fillStyle = this.color;
-    ctx.fill();
-  }
-
   normalizeNumber(
     number: number,
     range: { min: number; max: number },
@@ -298,34 +231,6 @@ class Node {
         ),
     };
   }
-
-  update() {
-    const { x, y } = this.graph.system.applyOffset(this.x, this.y);
-    const distance = Math.hypot(
-      this.graph.system.mouse.x - x,
-      this.graph.system.mouse.y - y,
-    );
-
-    if (this.graph.activeNodes.includes(this.id)) {
-      this.color = "green";
-      this.radius = 10;
-      return true;
-    }
-
-    if (distance < 10) {
-      this.color = "red";
-
-      if (this.graph.system.mouse.isLeftClicked) {
-        console.log(this.id, this.x, this.y);
-        this.graph.addActiveNode(this.id);
-      }
-      return true;
-    } else {
-      this.color = "black";
-      this.radius = 5;
-      return false;
-    }
-  }
 }
 
 class Edge {
@@ -341,29 +246,5 @@ class Edge {
     this.nodeB = nodeB;
     this.path = path;
     this.active = false;
-  }
-
-  draw(ctx: CanvasRenderingContext2D) {
-    if (this.active) {
-      ctx.strokeStyle = "red";
-    } else {
-      ctx.strokeStyle = "black";
-    }
-
-    const aCoords = this.graph.system.applyOffset(this.nodeA.x, this.nodeA.y);
-    const bCoords = this.graph.system.applyOffset(this.nodeB.x, this.nodeB.y);
-
-    ctx.beginPath();
-    ctx.moveTo(aCoords.x, aCoords.y);
-
-    for (const id of this.path) {
-      const pathNode = this.graph.nodes.get(id);
-      if (!pathNode) continue;
-      const pathCoords = this.graph.system.applyOffset(pathNode.x, pathNode.y);
-      ctx.lineTo(pathCoords.x, pathCoords.y);
-    }
-
-    ctx.lineTo(bCoords.x, bCoords.y);
-    ctx.stroke();
   }
 }

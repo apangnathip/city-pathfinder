@@ -4,6 +4,7 @@
   import { Graph, System } from "./graph";
   export let osm: OsmObject;
   export let bbox: Bounds;
+  import { initProgram } from "./shader";
 
   let initialMapScaling = 800;
 
@@ -22,70 +23,6 @@
     scrollScale: 1,
   };
 
-  function createShader(
-    gl: WebGL2RenderingContext,
-    type: number,
-    source: string,
-  ) {
-    const shader = gl.createShader(type);
-    if (!shader) return;
-
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-
-    if (success) {
-      return shader;
-    }
-
-    console.log(gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
-  }
-
-  function createProgram(
-    gl: WebGL2RenderingContext,
-    vertexShader: WebGLShader,
-    fragmentShader: WebGLShader,
-  ) {
-    const program = gl.createProgram();
-    if (!program) return;
-
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    const success = gl.getProgramParameter(program, gl.LINK_STATUS);
-
-    if (success) {
-      return program;
-    }
-
-    console.log(gl.getProgramInfoLog(program));
-    gl.deleteProgram(program);
-  }
-
-  const vertexShaderSource = `#version 300 es
-    in vec2 a_position;
-    
-    uniform vec2 u_resolution;
-    
-    void main() {
-      vec2 clipSpace = (a_position / u_resolution) * 2.0 - 1.0;
-      gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-    }
-  `;
-
-  const fragmentShaderSource = `#version 300 es
-    precision highp float;
-
-    uniform vec4 u_color;
-
-    out vec4 outColor;
-
-    void main() {
-      outColor = u_color;
-    }
-  `;
-
   onMount(async () => {
     resize();
     gl = canvas.getContext("webgl2")!;
@@ -94,26 +31,15 @@
     system = new System(bbox, canvas.height, initialMapScaling);
     const graph = new Graph(osm.elements, system);
 
-    const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-    const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-    if (!vs || !fs) return;
-
-    const program = createProgram(gl, vs, fs);
+    const program = initProgram(gl);
     if (!program) return;
 
     gl.useProgram(program);
 
-    //
-    // const resolutionLocation = gl.getUniformLocation(program, "u_resolution");
-    // gl.uniform2f(resolutionLocation, gl.canvas.width, gl.canvas.height);
-    //
-    // const colorLocation = gl.getUniformLocation(program, "u_color");
-    // gl.uniform4f(colorLocation, 0, 0, 0, 1);
-    //
-    // gl.drawArrays(gl.LINES, 0, positions.length / 2);
-
     const uniform = {
       resolution: gl.getUniformLocation(program, "u_resolution"),
+      translation: gl.getUniformLocation(program, "u_translation"),
+      scale: gl.getUniformLocation(program, "u_scale"),
       color: gl.getUniformLocation(program, "u_color"),
     };
 
@@ -135,11 +61,11 @@
       if (!gl || !canvas) return;
       requestAnimationFrame(animate);
 
-      // graph.drawEdges(gl);
-      // graph.drawNodes(gl, true);
       handleMouse(system);
 
       gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
+      gl.uniform1f(uniform.scale, mouse.scrollScale);
+      gl.uniform2fv(uniform.translation, [system.offset.x, system.offset.y]);
       gl.uniform4f(uniform.color, 0, 0, 0, 1);
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
@@ -147,7 +73,6 @@
     };
 
     animate();
-    // graph.drawEdgesGL(gl);
   });
 
   const resize = () => {
@@ -161,7 +86,13 @@
     if (mouse.isLeftClicked) {
       mouse.isLeftClicked = false;
     }
-    system.updateMouse(mouse);
+
+    if (mouse.isRightHeld) {
+      system.offset.x += (mouse.x - mouse.initx) / mouse.scrollScale;
+      system.offset.y += (mouse.y - mouse.inity) / mouse.scrollScale;
+      mouse.initx = mouse.x;
+      mouse.inity = mouse.y;
+    }
   };
 
   const handleMouseDown = (e: MouseEvent) => {
@@ -188,6 +119,13 @@
     }
   };
 
+  const removeOffset = (x: number, y: number) => {
+    return {
+      x: x / mouse.scrollScale + system.offset.x,
+      y: y / mouse.scrollScale + system.offset.y,
+    };
+  };
+
   const handleMouseMove = (e: MouseEvent) => {
     mouse.x = e.clientX;
     mouse.y = e.clientY;
@@ -200,7 +138,7 @@
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const prezoom = system.removeOffset(mouse.x, mouse.y);
+    const prezoom = removeOffset(mouse.x, mouse.y);
 
     if (e.deltaY > 0) {
       if (mouse.scrollScale > 0.1) {
@@ -213,7 +151,7 @@
     }
 
     // center zoom around cursor
-    const aftzoom = system.removeOffset(mouse.x, mouse.y);
+    const aftzoom = removeOffset(mouse.x, mouse.y);
     system.offset.x -= prezoom.x - aftzoom.x;
     system.offset.y -= prezoom.y - aftzoom.y;
   };
