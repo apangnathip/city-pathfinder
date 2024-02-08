@@ -42,34 +42,33 @@
       resolution: gl.getUniformLocation(program, "u_resolution"),
       translation: gl.getUniformLocation(program, "u_translation"),
       scale: gl.getUniformLocation(program, "u_scale"),
-      color: gl.getUniformLocation(program, "u_color"),
     };
+
+    const positionLoc = gl.getAttribLocation(program, "a_position");
+    const colorLoc = gl.getAttribLocation(program, "color");
 
     const positionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(positionLoc);
 
-    const positionAttribLoc = gl.getAttribLocation(program, "a_position");
-    gl.enableVertexAttribArray(positionAttribLoc);
-    gl.vertexAttribPointer(positionAttribLoc, 2, gl.FLOAT, false, 0, 0);
-
-    const positions = graph.getEdgePositions();
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(positions),
-      gl.DYNAMIC_DRAW,
-    );
+    const colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(colorLoc);
 
     const animate = () => {
       if (!gl || !canvas) return;
       requestAnimationFrame(animate);
 
       handleMouse(system);
+      gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
       gl.uniform1f(uniform.scale, mouse.scrollScale);
       gl.uniform2fv(uniform.translation, [system.offset.x, system.offset.y]);
-      gl.uniform4f(uniform.color, 0, 0, 0, 1);
-      gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       gl.drawArrays(gl.LINES, 0, positions.length / 2);
     };
@@ -143,13 +142,9 @@
     const prezoom = removeOffset(mouse.x, mouse.y);
 
     if (e.deltaY > 0) {
-      if (mouse.scrollScale > 0.1) {
-        mouse.scrollScale *= 0.8;
-      }
+      mouse.scrollScale *= 0.8;
     } else {
-      if (mouse.scrollScale < 10) {
-        mouse.scrollScale *= 1.25;
-      }
+      mouse.scrollScale *= 1.25;
     }
 
     // center zoom around cursor
@@ -181,6 +176,6 @@
   }
 
   canvas {
-    background-color: gray;
+    background-color: #191724;
   }
 </style>

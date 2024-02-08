@@ -159,6 +159,22 @@ export class Graph {
     this.adjList.get(edge.nodeB.id)?.set(edge.nodeA.id, edge);
   }
 
+  getNodePositions() {
+    const positions = [];
+
+    for (const [startID, adj] of this.adjList.entries()) {
+      const startNode = this.nodes.get(startID);
+      if (!startNode) continue;
+
+      for (const edge of adj.values()) {
+        positions.push(edge.nodeA.x, edge.nodeA.y);
+        positions.push(edge.nodeB.x, edge.nodeB.y);
+      }
+    }
+
+    return positions;
+  }
+
   getEdgePositions() {
     const positions = [];
 
@@ -181,7 +197,9 @@ export class Graph {
       }
     }
 
-    return positions;
+    // default color of all vertices as white
+    const colors = new Array((positions.length / 2) * 3).fill(1);
+    return { positions, colors };
   }
 }
 
