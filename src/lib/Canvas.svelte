@@ -31,7 +31,9 @@
     system = new System(bbox, canvas.height, initialMapScaling);
     const graph = new Graph(osm.elements, system);
 
-    const program = initProgram(gl);
+    let { positions, colors } = graph.getEdgePositions();
+
+    const program = await initProgram(gl, "vs.glsl", "fs.glsl");
     if (!program) return;
 
     gl.useProgram(program);

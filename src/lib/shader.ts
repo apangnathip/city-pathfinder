@@ -1,45 +1,23 @@
-const vertexShaderSource = `#version 300 es
-  in vec2 a_position;
-  
-  uniform vec2 u_resolution;
-  uniform vec2 u_translation;
-  uniform float u_scale;
-  
-  void main() {
-    vec2 position = (a_position + u_translation) * u_scale;
-    vec2 clipSpace = (position / u_resolution) * 2.0 - 1.0;
-    gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);
-  }
-`;
+async function fetchShader(shaderPath: string) {
+  let source = "";
 
-const fragmentShaderSource = `#version 300 es
-  precision highp float;
+  await fetch(shaderPath).then(async (res) => {
+    if (res) {
+      source = await res.text();
+    }
+  });
 
-  uniform vec4 u_color;
-
-  out vec4 outColor;
-
-  void main() {
-    outColor = u_color;
-  }
-`;
-
-export function initProgram(gl: WebGL2RenderingContext) {
-  const vs = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-  const fs = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-  if (!vs || !fs) return null;
-
-  const program = createProgram(gl, vs, fs);
-  if (!program) return null;
-
-  return program;
+  return source;
 }
 
-export function createShader(
+export async function createShader(
   gl: WebGL2RenderingContext,
   type: number,
-  source: string,
+  path: string,
 ) {
+  const source = await fetchShader(path);
+  if (!source) return null;
+
   const shader = gl.createShader(type);
   if (!shader) return;
 
@@ -74,4 +52,19 @@ export function createProgram(
 
   console.log(gl.getProgramInfoLog(program));
   gl.deleteProgram(program);
+}
+
+export async function initProgram(
+  gl: WebGL2RenderingContext,
+  vertexPath: string,
+  fragmentPath: string,
+) {
+  const vs = await createShader(gl, gl.VERTEX_SHADER, vertexPath);
+  const fs = await createShader(gl, gl.FRAGMENT_SHADER, fragmentPath);
+  if (!vs || !fs) return null;
+
+  const program = createProgram(gl, vs, fs);
+  if (!program) return null;
+
+  return program;
 }
