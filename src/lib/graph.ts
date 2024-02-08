@@ -161,18 +161,42 @@ export class Graph {
 
   getNodePositions() {
     const positions = [];
+    const indices = [];
+    const radius = 5;
 
     for (const [startID, adj] of this.adjList.entries()) {
       const startNode = this.nodes.get(startID);
       if (!startNode) continue;
 
       for (const edge of adj.values()) {
-        positions.push(edge.nodeA.x, edge.nodeA.y);
-        positions.push(edge.nodeB.x, edge.nodeB.y);
+        const currIdx = positions.length / 2;
+
+        positions.push(edge.nodeA.x - radius, edge.nodeA.y - radius);
+        positions.push(edge.nodeA.x + radius, edge.nodeA.y - radius);
+        positions.push(edge.nodeA.x - radius, edge.nodeA.y + radius);
+        positions.push(edge.nodeA.x + radius, edge.nodeA.y + radius);
+
+        indices.push(
+          currIdx,
+          currIdx + 1,
+          currIdx + 2,
+          currIdx + 2,
+          currIdx + 1,
+          currIdx + 3,
+        );
       }
     }
 
-    return positions;
+    // const colors = new Array((positions.length / 2) * 3).fill(0);
+    const colors = [];
+
+    for (let i = 0; i < indices.length / 4; i++) {
+      colors.push(1, 0, 0);
+      colors.push(0, 1, 0);
+      colors.push(0, 0, 1);
+      colors.push(0, 0, 0);
+    }
+    return { positions, indices, colors };
   }
 
   getEdgePositions() {

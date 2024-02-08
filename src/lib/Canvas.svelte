@@ -31,7 +31,26 @@
     system = new System(bbox, canvas.height, initialMapScaling);
     const graph = new Graph(osm.elements, system);
 
-    let { positions, colors } = graph.getEdgePositions();
+    const edge = graph.getEdgePositions();
+    const edgePositions = edge.positions;
+    const edgeColors = edge.colors;
+
+    const node = graph.getNodePositions();
+    const nodePositions = node.positions;
+    const nodeIndices = node.indices;
+    const nodeColors = node.colors;
+    // prettier-ignore
+    // const nodePositions = [
+    //   0, 0,
+    //   100, 0,
+    //   0, 100,
+    //   100, 100,
+    // ];
+    // const nodeColors = [
+    //   1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1,
+    // ];
+    //
+    // const nodeIndices = [0, 1, 2, 2, 1, 3];
 
     const program = await initProgram(gl, "vs.glsl", "fs.glsl");
     if (!program) return;
@@ -47,17 +66,75 @@
     const positionLoc = gl.getAttribLocation(program, "a_position");
     const colorLoc = gl.getAttribLocation(program, "color");
 
-    const positionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+    const edgePositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(edgePositions),
+      gl.STATIC_DRAW,
+    );
+
+    const edgeColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(edgeColors),
+      gl.STATIC_DRAW,
+    );
+
+    const nodePositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(nodePositions),
+      gl.STATIC_DRAW,
+    );
+
+    const nodeIndexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, nodeIndexBuffer);
+    gl.bufferData(
+      gl.ELEMENT_ARRAY_BUFFER,
+      new Uint16Array(nodeIndices),
+      gl.STATIC_DRAW,
+    );
+
+    const nodeColorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodeColorBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(nodeColors),
+      gl.STATIC_DRAW,
+    );
+
+    // Edge VAO
+    const edgeVAO = gl.createVertexArray();
+    gl.bindVertexArray(edgeVAO);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
     gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLoc);
 
-    const colorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
     gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(colorLoc);
+
+    gl.bindVertexArray(null);
+
+    // Node VAO
+    const nodeVAO = gl.createVertexArray();
+    gl.bindVertexArray(nodeVAO);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(positionLoc);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, nodeIndexBuffer);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodeColorBuffer);
+    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(colorLoc);
+
+    gl.bindVertexArray(null);
 
     const animate = () => {
       if (!gl || !canvas) return;
@@ -70,7 +147,11 @@
       gl.uniform1f(uniform.scale, mouse.scrollScale);
       gl.uniform2fv(uniform.translation, [system.offset.x, system.offset.y]);
 
-      gl.drawArrays(gl.LINES, 0, positions.length / 2);
+      gl.bindVertexArray(edgeVAO);
+      gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
+
+      gl.bindVertexArray(nodeVAO);
+      gl.drawElements(gl.TRIANGLES, nodeIndices.length, gl.UNSIGNED_SHORT, 0);
     };
 
     animate();
