@@ -40,21 +40,21 @@
     const nodeIndices = node.indices;
     const nodeColors = node.colors;
 
-    console.log(nodePositions);
+    const program1 = await initProgram(gl, "vs.glsl", "fs.glsl");
+    const program2 = await initProgram(gl, "nodeVS.glsl", "nodeFS.glsl");
+    if (!program1 || !program2) return;
 
-    const program = await initProgram(gl, "vs.glsl", "fs.glsl");
-    if (!program) return;
+    gl.useProgram(program1);
 
-    gl.useProgram(program);
-
-    const uniform = {
-      resolution: gl.getUniformLocation(program, "u_resolution"),
-      translation: gl.getUniformLocation(program, "u_translation"),
-      scale: gl.getUniformLocation(program, "u_scale"),
+    const uniform1 = {
+      resolution: gl.getUniformLocation(program1, "u_resolution"),
+      translation: gl.getUniformLocation(program1, "u_translation"),
+      scale: gl.getUniformLocation(program1, "u_scale"),
+      mouse: gl.getUniformLocation(program1, "u_mouse"),
     };
 
-    const positionLoc = gl.getAttribLocation(program, "a_position");
-    const colorLoc = gl.getAttribLocation(program, "color");
+    const positionLoc = gl.getAttribLocation(program1, "a_position");
+    const colorLoc = gl.getAttribLocation(program1, "color");
 
     const edgePositionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
@@ -71,6 +71,22 @@
       new Float32Array(edgeColors),
       gl.STATIC_DRAW,
     );
+
+    // Edge VAO
+    const edgeVAO = gl.createVertexArray();
+    gl.bindVertexArray(edgeVAO);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(positionLoc);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
+    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(colorLoc);
+
+    gl.bindVertexArray(null);
+
+    gl.useProgram(program2);
 
     const nodePositionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
@@ -96,19 +112,12 @@
       gl.STATIC_DRAW,
     );
 
-    // Edge VAO
-    const edgeVAO = gl.createVertexArray();
-    gl.bindVertexArray(edgeVAO);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(positionLoc);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
-    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(colorLoc);
-
-    gl.bindVertexArray(null);
+    const uniform2 = {
+      resolution: gl.getUniformLocation(program2, "u_resolution"),
+      translation: gl.getUniformLocation(program2, "u_translation"),
+      scale: gl.getUniformLocation(program2, "u_scale"),
+      mouse: gl.getUniformLocation(program2, "u_mouse"),
+    };
 
     // Node VAO
     const nodeVAO = gl.createVertexArray();
@@ -133,12 +142,22 @@
       handleMouse(system);
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-      gl.uniform2f(uniform.resolution, canvas.width, canvas.height);
-      gl.uniform1f(uniform.scale, mouse.scrollScale);
-      gl.uniform2fv(uniform.translation, [system.offset.x, system.offset.y]);
+      gl.useProgram(program1);
+
+      gl.uniform2f(uniform1.resolution, canvas.width, canvas.height);
+      gl.uniform1f(uniform1.scale, mouse.scrollScale);
+      gl.uniform2f(uniform1.translation, system.offset.x, system.offset.y);
+      gl.uniform2f(uniform1.mouse, mouse.x, mouse.y);
 
       gl.bindVertexArray(edgeVAO);
       gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
+
+      gl.useProgram(program2);
+
+      gl.uniform2f(uniform2.resolution, canvas.width, canvas.height);
+      gl.uniform1f(uniform2.scale, mouse.scrollScale);
+      gl.uniform2f(uniform2.translation, system.offset.x, system.offset.y);
+      gl.uniform2f(uniform2.mouse, mouse.x, mouse.y);
 
       gl.bindVertexArray(nodeVAO);
       gl.drawElements(gl.TRIANGLES, nodeIndices.length, gl.UNSIGNED_INT, 0);
