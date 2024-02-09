@@ -177,6 +177,14 @@ export class Graph {
           positions.push(edge.nodeA.x - radius, edge.nodeA.y + radius);
           positions.push(edge.nodeA.x + radius, edge.nodeA.y + radius);
         }
+
+        if (!memo.has(edge.nodeB.id)) {
+          memo.set(edge.nodeB.id, true);
+          positions.push(edge.nodeB.x - radius, edge.nodeB.y - radius);
+          positions.push(edge.nodeB.x + radius, edge.nodeB.y - radius);
+          positions.push(edge.nodeB.x - radius, edge.nodeB.y + radius);
+          positions.push(edge.nodeB.x + radius, edge.nodeB.y + radius);
+        }
       }
     }
 
