@@ -10,7 +10,7 @@ out vec4 outColor;
 void main() {
   outColor = vec4(v_color, 1);
 
-  if (v_dist > 150.0) {
-    discard;
-  }
+  // if (v_dist > 150.0) {
+  //   discard;
+  // }
 }

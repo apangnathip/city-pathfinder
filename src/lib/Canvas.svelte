@@ -35,26 +35,34 @@
     const edgePositions = edge.positions;
     const edgeColors = edge.colors;
 
-    const node = graph.getNodePositions();
-    const nodePositions = node.positions;
-    const nodeIndices = node.indices;
-    const nodeColors = node.colors;
+    const nodeRadius = 10;
+    const nodePositions = [
+      -nodeRadius,
+      -nodeRadius,
+      nodeRadius,
+      -nodeRadius,
+      -nodeRadius,
+      nodeRadius,
+      nodeRadius,
+      nodeRadius,
+    ];
+    const nodeTransform = graph.getNodePositions();
 
-    const program1 = await initProgram(gl, "vs.glsl", "fs.glsl");
-    const program2 = await initProgram(gl, "nodeVS.glsl", "nodeFS.glsl");
-    if (!program1 || !program2) return;
+    const edgeProgram = await initProgram(gl, "vs.glsl", "fs.glsl");
+    const nodeProgram = await initProgram(gl, "nodeVS.glsl", "nodeFS.glsl");
+    if (!edgeProgram || !nodeProgram) return;
 
-    gl.useProgram(program1);
+    gl.useProgram(edgeProgram);
 
-    const uniform1 = {
-      resolution: gl.getUniformLocation(program1, "u_resolution"),
-      translation: gl.getUniformLocation(program1, "u_translation"),
-      scale: gl.getUniformLocation(program1, "u_scale"),
-      mouse: gl.getUniformLocation(program1, "u_mouse"),
+    const edgeUniform = {
+      resolution: gl.getUniformLocation(edgeProgram, "u_resolution"),
+      translation: gl.getUniformLocation(edgeProgram, "u_translation"),
+      scale: gl.getUniformLocation(edgeProgram, "u_scale"),
+      mouse: gl.getUniformLocation(edgeProgram, "u_mouse"),
     };
 
-    const positionLoc = gl.getAttribLocation(program1, "a_position");
-    const colorLoc = gl.getAttribLocation(program1, "color");
+    const positionLoc = gl.getAttribLocation(edgeProgram, "a_position");
+    const colorLoc = gl.getAttribLocation(edgeProgram, "color");
 
     const edgePositionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
@@ -72,7 +80,6 @@
       gl.STATIC_DRAW,
     );
 
-    // Edge VAO
     const edgeVAO = gl.createVertexArray();
     gl.bindVertexArray(edgeVAO);
 
@@ -86,7 +93,17 @@
 
     gl.bindVertexArray(null);
 
-    gl.useProgram(program2);
+    gl.useProgram(nodeProgram);
+
+    const transformLoc = gl.getAttribLocation(nodeProgram, "transform");
+
+    const nodeUniform = {
+      resolution: gl.getUniformLocation(nodeProgram, "u_resolution"),
+      translation: gl.getUniformLocation(nodeProgram, "u_translation"),
+      radius: gl.getUniformLocation(nodeProgram, "u_radius"),
+      scale: gl.getUniformLocation(nodeProgram, "u_scale"),
+      mouse: gl.getUniformLocation(nodeProgram, "u_mouse"),
+    };
 
     const nodePositionBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
@@ -96,30 +113,14 @@
       gl.STATIC_DRAW,
     );
 
-    const nodeIndexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, nodeIndexBuffer);
-    gl.bufferData(
-      gl.ELEMENT_ARRAY_BUFFER,
-      new Uint32Array(nodeIndices),
-      gl.STATIC_DRAW,
-    );
-
-    const nodeColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodeColorBuffer);
+    const nodeTransformBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
     gl.bufferData(
       gl.ARRAY_BUFFER,
-      new Float32Array(nodeColors),
+      new Float32Array(nodeTransform),
       gl.STATIC_DRAW,
     );
 
-    const uniform2 = {
-      resolution: gl.getUniformLocation(program2, "u_resolution"),
-      translation: gl.getUniformLocation(program2, "u_translation"),
-      scale: gl.getUniformLocation(program2, "u_scale"),
-      mouse: gl.getUniformLocation(program2, "u_mouse"),
-    };
-
-    // Node VAO
     const nodeVAO = gl.createVertexArray();
     gl.bindVertexArray(nodeVAO);
 
@@ -127,11 +128,10 @@
     gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionLoc);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, nodeIndexBuffer);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodeColorBuffer);
-    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(colorLoc);
+    gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
+    gl.vertexAttribPointer(transformLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribDivisor(transformLoc, 1);
+    gl.enableVertexAttribArray(transformLoc);
 
     gl.bindVertexArray(null);
 
@@ -142,25 +142,33 @@
       handleMouse(system);
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-      gl.useProgram(program1);
+      gl.useProgram(edgeProgram);
 
-      gl.uniform2f(uniform1.resolution, canvas.width, canvas.height);
-      gl.uniform1f(uniform1.scale, mouse.scrollScale);
-      gl.uniform2f(uniform1.translation, system.offset.x, system.offset.y);
-      gl.uniform2f(uniform1.mouse, mouse.x, mouse.y);
+      gl.uniform2f(edgeUniform.resolution, canvas.width, canvas.height);
+      gl.uniform1f(edgeUniform.scale, mouse.scrollScale);
+      gl.uniform2f(edgeUniform.translation, system.offset.x, system.offset.y);
+      gl.uniform2f(edgeUniform.mouse, mouse.x, mouse.y);
 
       gl.bindVertexArray(edgeVAO);
       gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
 
-      gl.useProgram(program2);
+      gl.useProgram(nodeProgram);
 
-      gl.uniform2f(uniform2.resolution, canvas.width, canvas.height);
-      gl.uniform1f(uniform2.scale, mouse.scrollScale);
-      gl.uniform2f(uniform2.translation, system.offset.x, system.offset.y);
-      gl.uniform2f(uniform2.mouse, mouse.x, mouse.y);
+      gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
+      gl.uniform2f(nodeUniform.translation, system.offset.x, system.offset.y);
+      gl.uniform1f(nodeUniform.radius, nodeRadius);
+      gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
+      gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
 
       gl.bindVertexArray(nodeVAO);
-      gl.drawElements(gl.TRIANGLES, nodeIndices.length, gl.UNSIGNED_INT, 0);
+      gl.drawArraysInstanced(
+        gl.TRIANGLE_STRIP,
+        0,
+        nodePositions.length / 2,
+        nodeTransform.length / 2,
+      );
+      // gl.drawArrays(gl.TRIANGLES, 0, node.length / 2);
+      // gl.drawElements(gl.TRIANGLES, nodeIndices.length, gl.UNSIGNED_INT, 0);
     };
 
     animate();

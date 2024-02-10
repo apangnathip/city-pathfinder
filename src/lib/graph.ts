@@ -161,8 +161,6 @@ export class Graph {
 
   getNodePositions() {
     const positions = [];
-    const indices = [];
-    const radius = 5;
     const memo = new Map();
 
     for (const [startID, adj] of this.adjList.entries()) {
@@ -172,38 +170,26 @@ export class Graph {
       for (const edge of adj.values()) {
         if (!memo.has(edge.nodeA.id)) {
           memo.set(edge.nodeA.id, true);
-          positions.push(edge.nodeA.x - radius, edge.nodeA.y - radius);
-          positions.push(edge.nodeA.x + radius, edge.nodeA.y - radius);
-          positions.push(edge.nodeA.x - radius, edge.nodeA.y + radius);
-          positions.push(edge.nodeA.x + radius, edge.nodeA.y + radius);
+          positions.push(edge.nodeA.x, edge.nodeA.y);
         }
 
         if (!memo.has(edge.nodeB.id)) {
           memo.set(edge.nodeB.id, true);
-          positions.push(edge.nodeB.x - radius, edge.nodeB.y - radius);
-          positions.push(edge.nodeB.x + radius, edge.nodeB.y - radius);
-          positions.push(edge.nodeB.x - radius, edge.nodeB.y + radius);
-          positions.push(edge.nodeB.x + radius, edge.nodeB.y + radius);
+          positions.push(edge.nodeB.x, edge.nodeB.y);
         }
       }
     }
 
-    console.log(positions);
-
-    for (let i = 0; i < positions.length; i += 4) {
-      indices.push(i, i + 1, i + 2, i + 2, i + 1, i + 3);
-    }
-
-    const colors = [];
-
-    for (let i = 0; i < indices.length / 4; i++) {
-      colors.push(1, 0, 0);
-      colors.push(0, 1, 0);
-      colors.push(0, 0, 1);
-      colors.push(0, 0, 0);
-    }
-
-    return { positions, indices, colors };
+    // const colors = [];
+    //
+    // for (let i = 0; i < indices.length / 4; i++) {
+    //   colors.push(1, 0, 0);
+    //   colors.push(0, 1, 0);
+    //   colors.push(0, 0, 1);
+    //   colors.push(0, 0, 0);
+    // }
+    //
+    return positions;
   }
 
   getEdgePositions() {
