@@ -6,8 +6,6 @@
   export let bbox: Bounds;
   import { initProgram } from "./shader";
 
-  let initialMapScaling = 800;
-
   let canvas: HTMLCanvasElement;
   let container: HTMLElement;
   let gl: WebGL2RenderingContext;
@@ -28,7 +26,7 @@
     gl = canvas.getContext("webgl2")!;
     if (!gl || !canvas) return;
 
-    system = new System(bbox, canvas.height, initialMapScaling);
+    system = new System(bbox, canvas);
     const graph = new Graph(osm.elements, system);
 
     const edge = graph.getEdgePositions();
@@ -152,23 +150,21 @@
       gl.bindVertexArray(edgeVAO);
       gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
 
-      gl.useProgram(nodeProgram);
-
-      gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
-      gl.uniform2f(nodeUniform.translation, system.offset.x, system.offset.y);
-      gl.uniform1f(nodeUniform.radius, nodeRadius);
-      gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
-      gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
-
-      gl.bindVertexArray(nodeVAO);
-      gl.drawArraysInstanced(
-        gl.TRIANGLE_STRIP,
-        0,
-        nodePositions.length / 2,
-        nodeTransform.length / 2,
-      );
-      // gl.drawArrays(gl.TRIANGLES, 0, node.length / 2);
-      // gl.drawElements(gl.TRIANGLES, nodeIndices.length, gl.UNSIGNED_INT, 0);
+      // gl.useProgram(nodeProgram);
+      //
+      // gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
+      // gl.uniform2f(nodeUniform.translation, system.offset.x, system.offset.y);
+      // gl.uniform1f(nodeUniform.radius, nodeRadius);
+      // gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
+      // gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
+      //
+      // gl.bindVertexArray(nodeVAO);
+      // gl.drawArraysInstanced(
+      //   gl.TRIANGLE_STRIP,
+      //   0,
+      //   nodePositions.length / 2,
+      //   nodeTransform.length / 2,
+      // );
     };
 
     animate();

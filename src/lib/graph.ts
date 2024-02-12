@@ -14,16 +14,14 @@ type Mouse = {
 };
 
 export class System {
-  canvasHeight: number;
-  initialMapScaling: number;
+  canvas: HTMLCanvasElement;
   xRange: Range;
   yRange: Range;
   mouse: Mouse;
   offset: { x: number; y: number };
 
-  constructor(bbox: Bounds, canvasHeight: number, initialMapScaling: number) {
-    this.canvasHeight = canvasHeight;
-    this.initialMapScaling = initialMapScaling;
+  constructor(bbox: Bounds, canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
     this.xRange = { min: bbox.minlon, max: bbox.maxlon };
     this.yRange = { min: bbox.minlat, max: bbox.maxlat };
     this.offset = { x: 0, y: 0 };
@@ -180,15 +178,6 @@ export class Graph {
       }
     }
 
-    // const colors = [];
-    //
-    // for (let i = 0; i < indices.length / 4; i++) {
-    //   colors.push(1, 0, 0);
-    //   colors.push(0, 1, 0);
-    //   colors.push(0, 0, 1);
-    //   colors.push(0, 0, 0);
-    // }
-    //
     return positions;
   }
 
@@ -242,28 +231,40 @@ class Node {
     this.y = coords.y;
   }
 
-  normalizeNumber(
-    number: number,
-    range: { min: number; max: number },
-    scaling: number,
-  ) {
-    return ((number - range.min) / (range.max - range.min)) * scaling;
+  normalizeNumber(number: number, min: number, max: number) {
+    return (number - min) / (max - min);
+  }
+
+  mercator(lat: number) {
+    return (
+      Math.log(Math.tan(Math.PI / 4 + (lat / 2) * (Math.PI / 180))) *
+      (180 / Math.PI)
+    );
   }
 
   normalizeCoord(nodeElement: NodeElement) {
+    const lon = nodeElement.lon;
+    const lat = this.mercator(nodeElement.lat);
+
+    const minLat = this.mercator(this.graph.system.yRange.min);
+    const maxLat = this.mercator(this.graph.system.yRange.max);
+    const minLon = this.graph.system.xRange.min;
+    const maxLon = this.graph.system.xRange.max;
+
+    const heightToWidthRatio = (maxLon - minLon) * (1 / (maxLat - minLat));
+
+    const x =
+      this.normalizeNumber(lon, minLon, maxLon) *
+      this.graph.system.canvas.height *
+      heightToWidthRatio;
+    const y =
+      this.graph.system.canvas.height -
+      this.normalizeNumber(lat, minLat, maxLat) *
+        this.graph.system.canvas.height;
+
     return {
-      x: this.normalizeNumber(
-        nodeElement.lon,
-        this.graph.system.xRange,
-        this.graph.system.initialMapScaling,
-      ),
-      y:
-        this.graph.system.canvasHeight -
-        this.normalizeNumber(
-          nodeElement.lat,
-          this.graph.system.yRange,
-          this.graph.system.initialMapScaling,
-        ),
+      x: x,
+      y: y,
     };
   }
 }
