@@ -14,31 +14,49 @@ type Mouse = {
 };
 
 export class System {
-  canvas: HTMLCanvasElement;
-  xRange: Range;
-  yRange: Range;
-  mouse: Mouse;
-  offset: { x: number; y: number };
+  private static _instance: System;
+  private static _canvas: HTMLCanvasElement;
+  private static _bbox: Bounds;
 
-  constructor(bbox: Bounds, canvas: HTMLCanvasElement) {
-    this.canvas = canvas;
-    this.xRange = { min: bbox.minlon, max: bbox.maxlon };
-    this.yRange = { min: bbox.minlat, max: bbox.maxlat };
-    this.offset = { x: 0, y: 0 };
-    this.mouse = {
-      x: 0,
-      y: 0,
-      isLeftClicked: false,
-      isRightHeld: false,
-      initx: 0,
-      inity: 0,
-      scrollScale: 0,
-    };
+  constructor(canvas: HTMLCanvasElement, bbox: Bounds) {
+    if (!System._instance) {
+      System._instance = this;
+      System._canvas = canvas;
+      System._bbox = bbox;
+      System._bbox.minlat = System.mercator(bbox.minlat);
+      System._bbox.maxlat = System.mercator(bbox.maxlat);
+    }
+    return System._instance;
+  }
+
+  static getInstance() {
+    if (System._instance) {
+      return System._instance;
+    }
+    console.error("No system instance has been initialised");
+  }
+
+  static getCanvas() {
+    return System._canvas;
+  }
+
+  static getBounds() {
+    return System._bbox;
+  }
+
+  static normaliseByRange(n: number, min: number, max: number) {
+    return (n - min) / (max - min);
+  }
+
+  static mercator(coord: number) {
+    return (
+      Math.log(Math.tan(Math.PI / 4 + (coord / 2) * (Math.PI / 180))) *
+      (180 / Math.PI)
+    );
   }
 }
 
 export class Graph {
-  system: System;
   adjList: Map<number, Map<number, Edge>>;
   nodes: Map<number, Node>;
   pathNodePos: Map<number, Coord>;
@@ -46,8 +64,7 @@ export class Graph {
   activeNodes: number[];
   isNodeFound: boolean;
 
-  constructor(elements: Element[], system: System) {
-    this.system = system;
+  constructor(elements: Element[]) {
     this.adjList = new Map();
     this.nodes = new Map();
     this.pathNodePos = new Map();
@@ -226,41 +243,24 @@ class Node {
     this.color = "black";
     this.active = false;
 
-    const coords = this.normalizeCoord(nodeElement);
+    const coords = this.normalizeCoords(nodeElement);
     this.x = coords.x;
     this.y = coords.y;
   }
 
-  normalizeNumber(number: number, min: number, max: number) {
-    return (number - min) / (max - min);
-  }
+  normalizeCoords(nodeElement: NodeElement) {
+    const canvasHeight = System.getCanvas().height;
+    const { minlat, maxlat, minlon, maxlon } = System.getBounds();
 
-  mercator(lat: number) {
-    return (
-      Math.log(Math.tan(Math.PI / 4 + (lat / 2) * (Math.PI / 180))) *
-      (180 / Math.PI)
-    );
-  }
-
-  normalizeCoord(nodeElement: NodeElement) {
     const lon = nodeElement.lon;
-    const lat = this.mercator(nodeElement.lat);
+    const lat = System.mercator(nodeElement.lat);
+    const heightToWidthRatio = (maxlon - minlon) * (1 / (maxlat - minlat));
 
-    const minLat = this.mercator(this.graph.system.yRange.min);
-    const maxLat = this.mercator(this.graph.system.yRange.max);
-    const minLon = this.graph.system.xRange.min;
-    const maxLon = this.graph.system.xRange.max;
+    let x = System.normaliseByRange(lon, minlon, maxlon) * canvasHeight;
+    let y = System.normaliseByRange(lat, minlat, maxlat) * canvasHeight;
 
-    const heightToWidthRatio = (maxLon - minLon) * (1 / (maxLat - minLat));
-
-    const x =
-      this.normalizeNumber(lon, minLon, maxLon) *
-      this.graph.system.canvas.height *
-      heightToWidthRatio;
-    const y =
-      this.graph.system.canvas.height -
-      this.normalizeNumber(lat, minLat, maxLat) *
-        this.graph.system.canvas.height;
+    x *= heightToWidthRatio;
+    y = canvasHeight - y;
 
     return {
       x: x,

@@ -21,13 +21,15 @@
     scrollScale: 1,
   };
 
+  const offset = { x: 0, y: 0 };
+
   onMount(async () => {
     resize();
     gl = canvas.getContext("webgl2")!;
     if (!gl || !canvas) return;
 
-    system = new System(bbox, canvas);
-    const graph = new Graph(osm.elements, system);
+    system = new System(canvas, bbox);
+    const graph = new Graph(osm.elements);
 
     const edge = graph.getEdgePositions();
     const edgePositions = edge.positions;
@@ -144,27 +146,27 @@
 
       gl.uniform2f(edgeUniform.resolution, canvas.width, canvas.height);
       gl.uniform1f(edgeUniform.scale, mouse.scrollScale);
-      gl.uniform2f(edgeUniform.translation, system.offset.x, system.offset.y);
+      gl.uniform2f(edgeUniform.translation, offset.x, offset.y);
       gl.uniform2f(edgeUniform.mouse, mouse.x, mouse.y);
 
       gl.bindVertexArray(edgeVAO);
       gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
 
-      // gl.useProgram(nodeProgram);
-      //
-      // gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
-      // gl.uniform2f(nodeUniform.translation, system.offset.x, system.offset.y);
-      // gl.uniform1f(nodeUniform.radius, nodeRadius);
-      // gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
-      // gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
-      //
-      // gl.bindVertexArray(nodeVAO);
-      // gl.drawArraysInstanced(
-      //   gl.TRIANGLE_STRIP,
-      //   0,
-      //   nodePositions.length / 2,
-      //   nodeTransform.length / 2,
-      // );
+      gl.useProgram(nodeProgram);
+
+      gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
+      gl.uniform2f(nodeUniform.translation, offset.x, offset.y);
+      gl.uniform1f(nodeUniform.radius, nodeRadius);
+      gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
+      gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
+
+      gl.bindVertexArray(nodeVAO);
+      gl.drawArraysInstanced(
+        gl.TRIANGLE_STRIP,
+        0,
+        nodePositions.length / 2,
+        nodeTransform.length / 2,
+      );
     };
 
     animate();
@@ -183,8 +185,8 @@
     }
 
     if (mouse.isRightHeld) {
-      system.offset.x += (mouse.x - mouse.initx) / mouse.scrollScale;
-      system.offset.y += (mouse.y - mouse.inity) / mouse.scrollScale;
+      offset.x += (mouse.x - mouse.initx) / mouse.scrollScale;
+      offset.y += (mouse.y - mouse.inity) / mouse.scrollScale;
       mouse.initx = mouse.x;
       mouse.inity = mouse.y;
     }
@@ -216,8 +218,8 @@
 
   const removeOffset = (x: number, y: number) => {
     return {
-      x: x / mouse.scrollScale + system.offset.x,
-      y: y / mouse.scrollScale + system.offset.y,
+      x: x / mouse.scrollScale + offset.x,
+      y: y / mouse.scrollScale + offset.y,
     };
   };
 
@@ -243,8 +245,8 @@
 
     // center zoom around cursor
     const aftzoom = removeOffset(mouse.x, mouse.y);
-    system.offset.x -= prezoom.x - aftzoom.x;
-    system.offset.y -= prezoom.y - aftzoom.y;
+    offset.x -= prezoom.x - aftzoom.x;
+    offset.y -= prezoom.y - aftzoom.y;
   };
 </script>
 
