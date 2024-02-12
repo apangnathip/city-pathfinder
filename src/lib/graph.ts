@@ -1,30 +1,14 @@
-import type { Bounds, Element, NodeElement } from "./osm";
-
-type Range = { min: number; max: number };
-type Coord = { x: number; y: number };
-
-type Mouse = {
-  x: number;
-  y: number;
-  isLeftClicked: boolean;
-  isRightHeld: boolean;
-  initx: number;
-  inity: number;
-  scrollScale: number;
-};
+import type { Bounds, CartesianCoords, Element, NodeElement } from "./osm";
 
 export class System {
   private static _instance: System;
   private static _canvas: HTMLCanvasElement;
-  private static _bbox: Bounds;
+  private static _bounds: Bounds;
 
-  constructor(canvas: HTMLCanvasElement, bbox: Bounds) {
+  constructor(canvas: HTMLCanvasElement) {
     if (!System._instance) {
       System._instance = this;
       System._canvas = canvas;
-      System._bbox = bbox;
-      System._bbox.minlat = System.mercator(bbox.minlat);
-      System._bbox.maxlat = System.mercator(bbox.maxlat);
     }
     return System._instance;
   }
@@ -41,7 +25,7 @@ export class System {
   }
 
   static getBounds() {
-    return System._bbox;
+    return System._bounds;
   }
 
   static normaliseByRange(n: number, min: number, max: number) {
@@ -54,12 +38,40 @@ export class System {
       (180 / Math.PI)
     );
   }
+
+  static setBounds(elements: Element[]) {
+    let minlat, maxlat, minlon, maxlon;
+    minlat = minlon = 500;
+    maxlat = maxlon = -500;
+
+    for (const element of elements) {
+      if (element.type === "node") {
+        if (element.lat > maxlat) {
+          maxlat = element.lat;
+        } else if (element.lat < minlat) {
+          minlat = element.lat;
+        }
+
+        if (element.lon > maxlon) {
+          maxlon = element.lon;
+        } else if (element.lon < minlon) {
+          minlon = element.lon;
+        }
+      }
+    }
+
+    minlat = System.mercator(minlat);
+    maxlat = System.mercator(maxlat);
+
+    System._bounds = { minlat, minlon, maxlat, maxlon };
+    console.log(System._bounds);
+  }
 }
 
 export class Graph {
   adjList: Map<number, Map<number, Edge>>;
   nodes: Map<number, Node>;
-  pathNodePos: Map<number, Coord>;
+  pathNodePos: Map<number, CartesianCoords>;
   travelled: Map<number, boolean>;
   activeNodes: number[];
   isNodeFound: boolean;
@@ -71,6 +83,8 @@ export class Graph {
     this.travelled = new Map();
     this.activeNodes = [];
     this.isNodeFound = false;
+
+    System.setBounds(elements);
 
     const linkCounter = new Map();
 
@@ -243,12 +257,12 @@ class Node {
     this.color = "black";
     this.active = false;
 
-    const coords = this.normalizeCoords(nodeElement);
+    const coords = this.normalizeCoord(nodeElement);
     this.x = coords.x;
     this.y = coords.y;
   }
 
-  normalizeCoords(nodeElement: NodeElement) {
+  normalizeCoord(nodeElement: NodeElement) {
     const canvasHeight = System.getCanvas().height;
     const { minlat, maxlat, minlon, maxlon } = System.getBounds();
 

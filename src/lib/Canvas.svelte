@@ -1,9 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Bounds, OsmObject } from "./osm";
+  import type { OsmObject } from "./osm";
   import { Graph, System } from "./graph";
   export let osm: OsmObject;
-  export let bbox: Bounds;
   import { initProgram } from "./shader";
 
   let canvas: HTMLCanvasElement;
@@ -28,9 +27,10 @@
     gl = canvas.getContext("webgl2")!;
     if (!gl || !canvas) return;
 
-    system = new System(canvas, bbox);
-    const graph = new Graph(osm.elements);
+    system = new System(canvas);
+    offset.x = canvas.width / 4;
 
+    const graph = new Graph(osm.elements);
     const edge = graph.getEdgePositions();
     const edgePositions = edge.positions;
     const edgeColors = edge.colors;
@@ -139,7 +139,7 @@
       if (!gl || !canvas) return;
       requestAnimationFrame(animate);
 
-      handleMouse(system);
+      handleMouse();
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
       gl.useProgram(edgeProgram);
@@ -152,21 +152,21 @@
       gl.bindVertexArray(edgeVAO);
       gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
 
-      gl.useProgram(nodeProgram);
-
-      gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
-      gl.uniform2f(nodeUniform.translation, offset.x, offset.y);
-      gl.uniform1f(nodeUniform.radius, nodeRadius);
-      gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
-      gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
-
-      gl.bindVertexArray(nodeVAO);
-      gl.drawArraysInstanced(
-        gl.TRIANGLE_STRIP,
-        0,
-        nodePositions.length / 2,
-        nodeTransform.length / 2,
-      );
+      // gl.useProgram(nodeProgram);
+      //
+      // gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
+      // gl.uniform2f(nodeUniform.translation, offset.x, offset.y);
+      // gl.uniform1f(nodeUniform.radius, nodeRadius);
+      // gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
+      // gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
+      //
+      // gl.bindVertexArray(nodeVAO);
+      // gl.drawArraysInstanced(
+      //   gl.TRIANGLE_STRIP,
+      //   0,
+      //   nodePositions.length / 2,
+      //   nodeTransform.length / 2,
+      // );
     };
 
     animate();
@@ -179,7 +179,7 @@
     canvas.style.height = container.offsetHeight + "px";
   };
 
-  const handleMouse = (system: System) => {
+  const handleMouse = () => {
     if (mouse.isLeftClicked) {
       mouse.isLeftClicked = false;
     }

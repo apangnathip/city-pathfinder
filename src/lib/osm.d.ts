@@ -1,9 +1,7 @@
 type Element = NodeElement | WayElement;
 
-export type Coord = {
-  lat: number;
-  lon: number;
-};
+export type CartesianCoords = { x: number; y: number };
+export type Coords = { lat: number; lon: number };
 
 export type Bounds = {
   maxlat: number;
