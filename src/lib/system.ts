@@ -72,6 +72,13 @@ export class System {
     return [System._mouse.initx, System._mouse.inity];
   }
 
+  static getHeightWidthRatio() {
+    return (
+      (System._bounds.maxlon - System._bounds.minlon) *
+      (1 / (System._bounds.maxlat - System._bounds.minlat))
+    );
+  }
+
   static isMouseButtonPressed(button: number) {
     switch (button) {
       case 0:
@@ -90,14 +97,9 @@ export class System {
   }
 
   static resetOffset() {
-    System._offset = {
-      x: (System._canvas.width - System._canvas.height) / 2,
-      y: 0,
-    };
-
-    console.log(System._bounds);
-    if (System._bounds) {
-    }
+    const mapSize = System._canvas.height * System.getHeightWidthRatio();
+    System._offset.x = (System._canvas.width - mapSize) / 2;
+    System._offset.y = 0;
   }
 
   static resetScale() {

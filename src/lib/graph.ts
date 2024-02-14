@@ -203,12 +203,11 @@ class Node {
 
     const lon = nodeElement.lon;
     const lat = System.mercator(nodeElement.lat);
-    const heightToWidthRatio = (maxlon - minlon) * (1 / (maxlat - minlat));
 
     let x = System.normaliseByRange(lon, minlon, maxlon) * canvasHeight;
     let y = System.normaliseByRange(lat, minlat, maxlat) * canvasHeight;
 
-    x *= heightToWidthRatio;
+    x *= System.getHeightWidthRatio();
     y = canvasHeight - y;
 
     return {
