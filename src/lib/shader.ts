@@ -1,5 +1,6 @@
 import { Graph } from "./graph";
 import { query } from "./query";
+import { System } from "./system";
 
 export async function initGraph(gl: WebGL2RenderingContext, areaID: number) {
   const osm = await query(areaID);
@@ -7,6 +8,9 @@ export async function initGraph(gl: WebGL2RenderingContext, areaID: number) {
   const edge = graph.getEdgePositions();
   const edgePositions = edge.positions;
   const edgeColors = edge.colors;
+
+  System.resetOffset();
+  System.resetScale();
 
   const nodePositions = [
     -graph.nodeRadius,

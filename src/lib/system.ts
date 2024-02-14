@@ -23,7 +23,7 @@ export class System {
     if (!System._instance) {
       System._instance = this;
       System._canvas = canvas;
-      System._offset = { x: canvas.width / 4, y: 0 };
+      System._offset = { x: (canvas.width - canvas.height) / 2, y: 0 };
       System._scale = 1;
       System._mouse = {
         x: 0,
@@ -90,7 +90,14 @@ export class System {
   }
 
   static resetOffset() {
-    System._offset = { x: System._canvas.width / 4, y: 0 };
+    System._offset = {
+      x: (System._canvas.width - System._canvas.height) / 2,
+      y: 0,
+    };
+
+    console.log(System._bounds);
+    if (System._bounds) {
+    }
   }
 
   static resetScale() {
@@ -131,11 +138,7 @@ export class System {
   }
 
   static setQuery(query: NominatimQuery) {
-    if (!System._query) {
-      System._newQuery = false;
-    } else {
-      System._newQuery = true;
-    }
+    System._newQuery = true;
     System._query = query;
   }
 
