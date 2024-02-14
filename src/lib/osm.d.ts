@@ -1,6 +1,16 @@
 type Element = NodeElement | WayElement;
 
+export type NominatimQuery = {
+  place_id: number;
+  name: string;
+  display_name: string;
+  osm_id: number;
+  osm_type: string;
+  boundingbox: string[];
+};
+
 export type CartesianCoords = { x: number; y: number };
+
 export type Coords = { lat: number; lon: number };
 
 export type Bounds = {

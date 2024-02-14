@@ -1,35 +1,30 @@
 <script lang="ts">
   import "@fortawesome/fontawesome-free/css/all.min.css";
-  import { System } from "./graph";
-
-  type NominatimQuery = {
-    place_id: number;
-    name: string;
-    display_name: string;
-    osm_id: number;
-    boundingbox: string[];
-  };
+  import { System } from "./system";
+  import type { NominatimQuery } from "./osm";
 
   let queries = [] as NominatimQuery[];
 
   let showQuery = true;
 
   const nominatimQuery = async (queryString: string) => {
-    return await fetch(
+    const queries = await fetch(
       `https://nominatim.openstreetmap.org/search?city=${queryString}&format=json`,
     ).then((res) => res.json());
+
+    return queries.filter(
+      (query: NominatimQuery) => query.osm_type === "relation",
+    );
   };
 
   const submitQuery = async (e: SubmitEvent) => {
     e.preventDefault();
     const input = document.getElementById("query-input") as HTMLInputElement;
     queries = await nominatimQuery(input.value);
-    console.log(queries);
-    // System.setQuery("area", input.value);
   };
 
   const chooseQuery = (query: NominatimQuery) => {
-    console.log(query);
+    System.setQuery(query);
     queries = [];
   };
 </script>
