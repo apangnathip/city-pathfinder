@@ -25,7 +25,6 @@
 
   const chooseQuery = (query: NominatimQuery) => {
     System.setQuery(query);
-    console.log(query);
     queries = [];
   };
 </script>
@@ -42,13 +41,15 @@
         <input id="query-input" />
         <input type="submit" hidden />
       </form>
-      <div id="query-result-box">
-        {#each queries as query}
-          <div class="query-result" on:click={() => chooseQuery(query)}>
-            {query.display_name}
-          </div>
-        {/each}
-      </div>
+      {#if queries.length > 0}
+        <div id="query-result-box">
+          {#each queries as query}
+            <div class="query-result" on:click={() => chooseQuery(query)}>
+              {query.display_name}
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
   <span id="progress"></span>
@@ -62,11 +63,11 @@
     position: absolute;
     display: flex;
     color: white;
+    align-items: center;
   }
 
   .query-result {
     background-color: white;
-    border-bottom: 1px solid #191724;
     color: black;
     padding: 0.75rem 1rem;
   }
@@ -100,12 +101,18 @@
   #query-input {
     padding: 0.5rem 1rem;
     border: none;
-    width: 100%;
+    width: 20rem;
     font-size: 1rem;
+    border-radius: 5px;
   }
 
   #query-result-box {
+    position: absolute;
     background-color: white;
+    width: 20rem;
+    top: 2.5rem;
+    padding: 1rem 0rem;
+    border-radius: 5px;
     display: flex;
     flex-direction: column;
   }
