@@ -2,15 +2,23 @@
 
 precision highp float;
 
+in vec2 v_position;
 in vec3 v_color;
 in float v_dist;
 
 out vec4 outColor;
 
-void main() {
-  outColor = vec4(v_color, 1);
+uniform vec2 u_resolution;
+uniform float u_radius;
 
-  // if (v_dist > 150.0) {
-  //   discard;
-  // }
+float circle(in float radius){
+  vec2 dist = v_position;
+  return 1.0 - smoothstep(radius - (radius * 0.01),
+                          radius + (radius * 0.01), 
+                          dot(dist, dist) * 4.0);
+}
+
+void main() {
+  if (circle(1.0) < 0.5) discard;
+  outColor = vec4(v_color, 1.0);
 }
