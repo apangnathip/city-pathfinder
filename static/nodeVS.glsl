@@ -24,9 +24,11 @@ void main() {
   v_dist = distance(u_mouse, (transform + u_translation) * u_scale);
   v_position = a_position / (u_radius * 2.0);
 
-  if (v_dist / u_scale <= u_radius ) {
-    v_color = vec3(1, 0, 0); 
+  if (u_scale > 1.0) v_position *= u_scale;
+
+  if (v_dist <= u_radius ) {
+    v_color = vec3(0.9, 0.0, 0.0); 
   } else {
-    v_color = vec3(1, 1, 1);
+    v_color = vec3(0.9, 0.9, 0.9);
   }
 }

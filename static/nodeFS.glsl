@@ -8,9 +8,6 @@ in float v_dist;
 
 out vec4 outColor;
 
-uniform vec2 u_resolution;
-uniform float u_radius;
-
 float circle(in float radius){
   vec2 dist = v_position;
   return 1.0 - smoothstep(radius - (radius * 0.01),
@@ -19,6 +16,6 @@ float circle(in float radius){
 }
 
 void main() {
-  if (circle(1.0) < 0.5) discard;
+  if (circle(1.0) < 0.5 || v_dist > 200.0) discard;
   outColor = vec4(v_color, 1.0);
 }

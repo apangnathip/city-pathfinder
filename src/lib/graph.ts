@@ -17,7 +17,7 @@ export class Graph {
     this.travelled = new Map();
     this.activeNodes = [];
     this.isNodeFound = false;
-    this.nodeRadius = 2;
+    this.nodeRadius = 10;
 
     System.setBounds(elements);
 
