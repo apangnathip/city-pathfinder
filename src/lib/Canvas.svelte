@@ -1,9 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { OsmObject } from "./osm";
-  import { Graph, System } from "./graph";
-  export let osm: OsmObject;
+  import { Graph } from "./graph";
   import { initProgram } from "./shader";
+  import { System } from "./system";
 
   let canvas: HTMLCanvasElement;
   let container: HTMLElement;
@@ -22,14 +21,32 @@
 
   const offset = { x: 0, y: 0 };
 
-  onMount(async () => {
-    resize();
-    gl = canvas.getContext("webgl2")!;
-    if (!gl || !canvas) return;
+  const query = async (areaID: number) => {
+    const progress = document.getElementById("progress");
+    if (progress) progress.textContent = "Loading...";
 
-    system = new System(canvas);
+    const data = await fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      body:
+        "data=" +
+        encodeURIComponent(`
+        [out:json];
+        area(${3600000000 + areaID});
+        (way(area)[highway ~ "(motorway|trunk|primary|secondary|tertiary|road|residential|.*_link)"];);
+        (._;>;);
+        out geom;
+        `),
+    }).then((data) => data.json());
+
+    if (progress) progress.textContent = "";
+    offset.y = 0;
     offset.x = canvas.width / 4;
+    mouse.scrollScale = 1;
+    return data;
+  };
 
+  const initGraph = async (areaID: number) => {
+    const osm = await query(areaID);
     const graph = new Graph(osm.elements);
     const edge = graph.getEdgePositions();
     const edgePositions = edge.positions;
@@ -135,22 +152,60 @@
 
     gl.bindVertexArray(null);
 
+    return {
+      edge: {
+        program: edgeProgram,
+        vao: edgeVAO,
+        uniforms: edgeUniform,
+        positions: edgePositions,
+      },
+      node: {
+        program: nodeProgram,
+        vao: nodeVAO,
+        uniforms: nodeUniform,
+        positions: nodePositions,
+      },
+    };
+  };
+
+  onMount(async () => {
+    resize();
+    gl = canvas.getContext("webgl2")!;
+    if (!gl || !canvas) return;
+
+    system = new System(canvas);
+    offset.x = canvas.width / 4;
+
+    let shaders = await initGraph(6979808);
+
+    const updateShaders = async () => {
+      shaders = await initGraph(System.getQuery().osm_id);
+    };
+
     const animate = () => {
-      if (!gl || !canvas) return;
+      if (!gl || !canvas || !shaders) return;
       requestAnimationFrame(animate);
+
+      if (System.hasChangedQuery()) {
+        updateShaders();
+      }
 
       handleMouse();
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-      gl.useProgram(edgeProgram);
+      gl.useProgram(shaders.edge.program);
 
-      gl.uniform2f(edgeUniform.resolution, canvas.width, canvas.height);
-      gl.uniform1f(edgeUniform.scale, mouse.scrollScale);
-      gl.uniform2f(edgeUniform.translation, offset.x, offset.y);
-      gl.uniform2f(edgeUniform.mouse, mouse.x, mouse.y);
+      gl.uniform2f(
+        shaders.edge.uniforms.resolution,
+        canvas.width,
+        canvas.height,
+      );
+      gl.uniform1f(shaders.edge.uniforms.scale, mouse.scrollScale);
+      gl.uniform2f(shaders.edge.uniforms.translation, offset.x, offset.y);
+      gl.uniform2f(shaders.edge.uniforms.mouse, mouse.x, mouse.y);
 
-      gl.bindVertexArray(edgeVAO);
-      gl.drawArrays(gl.LINES, 0, edgePositions.length / 2);
+      gl.bindVertexArray(shaders.edge.vao);
+      gl.drawArrays(gl.LINES, 0, shaders.edge.positions.length / 2);
 
       // gl.useProgram(nodeProgram);
       //

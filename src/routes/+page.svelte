@@ -1,10 +1,11 @@
 <script lang="ts">
   import Canvas from "$lib/Canvas.svelte";
-  export let data;
+  import Nav from "$lib/Nav.svelte";
 </script>
 
 <main>
-  <Canvas osm={data.osm} bbox={data.bbox}></Canvas>
+  <Nav></Nav>
+  <Canvas></Canvas>
 </main>
 
 <style>

@@ -1,10 +1,10 @@
-import type { Bounds, Element } from "./osm";
+import type { Bounds, Element, NominatimQuery } from "./osm";
 
 export class System {
   private static _instance: System;
   private static _canvas: HTMLCanvasElement;
   private static _bounds: Bounds;
-  private static _query: { [type: string]: string };
+  private static _query: NominatimQuery;
   private static _newQuery: boolean;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -42,14 +42,13 @@ export class System {
     return false;
   }
 
-  static setQuery(type: string, val: string) {
+  static setQuery(query: NominatimQuery) {
     if (!System._query) {
       System._newQuery = false;
-      System._query = {};
     } else {
       System._newQuery = true;
     }
-    System._query[type] = val;
+    System._query = query;
   }
 
   static setBounds(elements: Element[]) {

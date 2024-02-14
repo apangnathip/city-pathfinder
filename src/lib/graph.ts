@@ -1,4 +1,4 @@
-import type { Bounds, CartesianCoords, Element, NodeElement } from "./osm";
+import type { CartesianCoords, Element, NodeElement } from "./osm";
 import { System } from "./system";
 
 export class Graph {
