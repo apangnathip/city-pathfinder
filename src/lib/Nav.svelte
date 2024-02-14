@@ -25,6 +25,7 @@
 
   const chooseQuery = (query: NominatimQuery) => {
     System.setQuery(query);
+    console.log(query);
     queries = [];
   };
 </script>

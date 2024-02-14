@@ -1,172 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Graph } from "./graph";
-  import { initProgram } from "./shader";
   import { System } from "./system";
+  import { initGraph } from "./shader";
 
   let canvas: HTMLCanvasElement;
   let container: HTMLElement;
   let gl: WebGL2RenderingContext;
   let system: System;
-
-  const mouse = {
-    x: 0,
-    y: 0,
-    isLeftClicked: false,
-    isRightHeld: false,
-    initx: 0,
-    inity: 0,
-    scrollScale: 1,
-  };
-
-  const offset = { x: 0, y: 0 };
-
-  const query = async (areaID: number) => {
-    const progress = document.getElementById("progress");
-    if (progress) progress.textContent = "Loading...";
-
-    const data = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body:
-        "data=" +
-        encodeURIComponent(`
-        [out:json];
-        area(${3600000000 + areaID});
-        (way(area)[highway ~ "(motorway|trunk|primary|secondary|tertiary|road|residential|.*_link)"];);
-        (._;>;);
-        out geom;
-        `),
-    }).then((data) => data.json());
-
-    if (progress) progress.textContent = "";
-    offset.y = 0;
-    offset.x = canvas.width / 4;
-    mouse.scrollScale = 1;
-    return data;
-  };
-
-  const initGraph = async (areaID: number) => {
-    const osm = await query(areaID);
-    const graph = new Graph(osm.elements);
-    const edge = graph.getEdgePositions();
-    const edgePositions = edge.positions;
-    const edgeColors = edge.colors;
-
-    const nodeRadius = 10;
-    const nodePositions = [
-      -nodeRadius,
-      -nodeRadius,
-      nodeRadius,
-      -nodeRadius,
-      -nodeRadius,
-      nodeRadius,
-      nodeRadius,
-      nodeRadius,
-    ];
-    const nodeTransform = graph.getNodePositions();
-
-    const edgeProgram = await initProgram(gl, "vs.glsl", "fs.glsl");
-    const nodeProgram = await initProgram(gl, "nodeVS.glsl", "nodeFS.glsl");
-    if (!edgeProgram || !nodeProgram) return;
-
-    gl.useProgram(edgeProgram);
-
-    const edgeUniform = {
-      resolution: gl.getUniformLocation(edgeProgram, "u_resolution"),
-      translation: gl.getUniformLocation(edgeProgram, "u_translation"),
-      scale: gl.getUniformLocation(edgeProgram, "u_scale"),
-      mouse: gl.getUniformLocation(edgeProgram, "u_mouse"),
-    };
-
-    const positionLoc = gl.getAttribLocation(edgeProgram, "a_position");
-    const colorLoc = gl.getAttribLocation(edgeProgram, "color");
-
-    const edgePositionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(edgePositions),
-      gl.STATIC_DRAW,
-    );
-
-    const edgeColorBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(edgeColors),
-      gl.STATIC_DRAW,
-    );
-
-    const edgeVAO = gl.createVertexArray();
-    gl.bindVertexArray(edgeVAO);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(positionLoc);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
-    gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(colorLoc);
-
-    gl.bindVertexArray(null);
-
-    gl.useProgram(nodeProgram);
-
-    const transformLoc = gl.getAttribLocation(nodeProgram, "transform");
-
-    const nodeUniform = {
-      resolution: gl.getUniformLocation(nodeProgram, "u_resolution"),
-      translation: gl.getUniformLocation(nodeProgram, "u_translation"),
-      radius: gl.getUniformLocation(nodeProgram, "u_radius"),
-      scale: gl.getUniformLocation(nodeProgram, "u_scale"),
-      mouse: gl.getUniformLocation(nodeProgram, "u_mouse"),
-    };
-
-    const nodePositionBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(nodePositions),
-      gl.STATIC_DRAW,
-    );
-
-    const nodeTransformBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(nodeTransform),
-      gl.STATIC_DRAW,
-    );
-
-    const nodeVAO = gl.createVertexArray();
-    gl.bindVertexArray(nodeVAO);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(positionLoc);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
-    gl.vertexAttribPointer(transformLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.vertexAttribDivisor(transformLoc, 1);
-    gl.enableVertexAttribArray(transformLoc);
-
-    gl.bindVertexArray(null);
-
-    return {
-      edge: {
-        program: edgeProgram,
-        vao: edgeVAO,
-        uniforms: edgeUniform,
-        positions: edgePositions,
-      },
-      node: {
-        program: nodeProgram,
-        vao: nodeVAO,
-        uniforms: nodeUniform,
-        positions: nodePositions,
-      },
-    };
-  };
 
   onMount(async () => {
     resize();
@@ -174,12 +14,12 @@
     if (!gl || !canvas) return;
 
     system = new System(canvas);
-    offset.x = canvas.width / 4;
 
-    let shaders = await initGraph(6979808);
+    // default to monaco
+    let shaders = await initGraph(gl, 2220322);
 
     const updateShaders = async () => {
-      shaders = await initGraph(System.getQuery().osm_id);
+      shaders = await initGraph(gl, System.getQuery().osm_id);
     };
 
     const animate = () => {
@@ -200,9 +40,9 @@
         canvas.width,
         canvas.height,
       );
-      gl.uniform1f(shaders.edge.uniforms.scale, mouse.scrollScale);
-      gl.uniform2f(shaders.edge.uniforms.translation, offset.x, offset.y);
-      gl.uniform2f(shaders.edge.uniforms.mouse, mouse.x, mouse.y);
+      gl.uniform1f(shaders.edge.uniforms.scale, System.getScale());
+      gl.uniform2fv(shaders.edge.uniforms.translation, System.getOffset());
+      gl.uniform2fv(shaders.edge.uniforms.mouse, System.getMousePos());
 
       gl.bindVertexArray(shaders.edge.vao);
       gl.drawArrays(gl.LINES, 0, shaders.edge.positions.length / 2);
@@ -235,27 +75,27 @@
   };
 
   const handleMouse = () => {
-    if (mouse.isLeftClicked) {
-      mouse.isLeftClicked = false;
+    if (System.isMouseButtonPressed(0)) {
+      System.setMouseButtons(false, 0);
     }
 
-    if (mouse.isRightHeld) {
-      offset.x += (mouse.x - mouse.initx) / mouse.scrollScale;
-      offset.y += (mouse.y - mouse.inity) / mouse.scrollScale;
-      mouse.initx = mouse.x;
-      mouse.inity = mouse.y;
+    if (System.isMouseButtonPressed(1)) {
+      let [mx, my] = System.getMousePos();
+      const [ix, iy] = System.getMouseInitPos();
+      const scale = System.getScale();
+      System.setOffset((mx - ix) / scale, (my - iy) / scale, "inc");
+      System.initMousePos(mx, my);
     }
   };
 
   const handleMouseDown = (e: MouseEvent) => {
     switch (e.button) {
       case 0:
-        mouse.isLeftClicked = true;
+        System.setMouseButtons(true, 0);
         break;
       case 2:
-        mouse.isRightHeld = true;
-        mouse.initx = e.clientX;
-        mouse.inity = e.clientY;
+        System.setMouseButtons(true, 1);
+        System.initMousePos(e.clientX, e.clientY);
         break;
     }
   };
@@ -263,45 +103,43 @@
   const handleMouseUp = (e: MouseEvent) => {
     switch (e.button) {
       case 0:
-        mouse.isLeftClicked = false;
+        System.setMouseButtons(false, 0);
         break;
       case 2:
-        mouse.isRightHeld = false;
+        System.setMouseButtons(false, 1);
         break;
     }
   };
 
   const removeOffset = (x: number, y: number) => {
+    const offset = System.getOffset();
     return {
-      x: x / mouse.scrollScale + offset.x,
-      y: y / mouse.scrollScale + offset.y,
+      x: x / System.getScale() + offset[0],
+      y: y / System.getScale() + offset[1],
     };
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
+    System.setMousePos(e.clientX, e.clientY);
   };
 
   const handleMouseLeave = () => {
-    mouse.isLeftClicked = false;
-    mouse.isRightHeld = false;
+    System.setMouseButtons(false);
   };
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const prezoom = removeOffset(mouse.x, mouse.y);
+    const prezoom = removeOffset(...System.getMousePos());
 
     if (e.deltaY > 0) {
-      mouse.scrollScale *= 0.8;
+      System.scaleUp();
     } else {
-      mouse.scrollScale *= 1.25;
+      System.scaleDown();
     }
 
     // center zoom around cursor
-    const aftzoom = removeOffset(mouse.x, mouse.y);
-    offset.x -= prezoom.x - aftzoom.x;
-    offset.y -= prezoom.y - aftzoom.y;
+    const aftzoom = removeOffset(...System.getMousePos());
+    System.setOffset(prezoom.x - aftzoom.x, prezoom.y - aftzoom.y, "dec");
   };
 </script>
 

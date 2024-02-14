@@ -1,3 +1,125 @@
+import { Graph } from "./graph";
+import { query } from "./query";
+
+export async function initGraph(gl: WebGL2RenderingContext, areaID: number) {
+  const osm = await query(areaID);
+  const graph = new Graph(osm.elements);
+  const edge = graph.getEdgePositions();
+  const edgePositions = edge.positions;
+  const edgeColors = edge.colors;
+
+  const nodeRadius = 10;
+  const nodePositions = [
+    -nodeRadius,
+    -nodeRadius,
+    nodeRadius,
+    -nodeRadius,
+    -nodeRadius,
+    nodeRadius,
+    nodeRadius,
+    nodeRadius,
+  ];
+  const nodeTransform = graph.getNodePositions();
+
+  const edgeProgram = await initProgram(gl, "vs.glsl", "fs.glsl");
+  const nodeProgram = await initProgram(gl, "nodeVS.glsl", "nodeFS.glsl");
+  if (!edgeProgram || !nodeProgram) return;
+
+  gl.useProgram(edgeProgram);
+
+  const edgeUniform = {
+    resolution: gl.getUniformLocation(edgeProgram, "u_resolution"),
+    translation: gl.getUniformLocation(edgeProgram, "u_translation"),
+    scale: gl.getUniformLocation(edgeProgram, "u_scale"),
+    mouse: gl.getUniformLocation(edgeProgram, "u_mouse"),
+  };
+
+  const positionLoc = gl.getAttribLocation(edgeProgram, "a_position");
+  const colorLoc = gl.getAttribLocation(edgeProgram, "color");
+
+  const edgePositionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(edgePositions),
+    gl.STATIC_DRAW,
+  );
+
+  const edgeColorBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(edgeColors), gl.STATIC_DRAW);
+
+  const edgeVAO = gl.createVertexArray();
+  gl.bindVertexArray(edgeVAO);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, edgePositionBuffer);
+  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(positionLoc);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, edgeColorBuffer);
+  gl.vertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(colorLoc);
+
+  gl.bindVertexArray(null);
+
+  gl.useProgram(nodeProgram);
+
+  const transformLoc = gl.getAttribLocation(nodeProgram, "transform");
+
+  const nodeUniform = {
+    resolution: gl.getUniformLocation(nodeProgram, "u_resolution"),
+    translation: gl.getUniformLocation(nodeProgram, "u_translation"),
+    radius: gl.getUniformLocation(nodeProgram, "u_radius"),
+    scale: gl.getUniformLocation(nodeProgram, "u_scale"),
+    mouse: gl.getUniformLocation(nodeProgram, "u_mouse"),
+  };
+
+  const nodePositionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(nodePositions),
+    gl.STATIC_DRAW,
+  );
+
+  const nodeTransformBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
+  gl.bufferData(
+    gl.ARRAY_BUFFER,
+    new Float32Array(nodeTransform),
+    gl.STATIC_DRAW,
+  );
+
+  const nodeVAO = gl.createVertexArray();
+  gl.bindVertexArray(nodeVAO);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, nodePositionBuffer);
+  gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(positionLoc);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, nodeTransformBuffer);
+  gl.vertexAttribPointer(transformLoc, 2, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribDivisor(transformLoc, 1);
+  gl.enableVertexAttribArray(transformLoc);
+
+  gl.bindVertexArray(null);
+
+  return {
+    edge: {
+      program: edgeProgram,
+      vao: edgeVAO,
+      uniforms: edgeUniform,
+      positions: edgePositions,
+    },
+    node: {
+      program: nodeProgram,
+      vao: nodeVAO,
+      uniforms: nodeUniform,
+      positions: nodePositions,
+    },
+  };
+}
+
 async function fetchShader(shaderPath: string) {
   let source = "";
 
