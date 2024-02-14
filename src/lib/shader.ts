@@ -8,16 +8,15 @@ export async function initGraph(gl: WebGL2RenderingContext, areaID: number) {
   const edgePositions = edge.positions;
   const edgeColors = edge.colors;
 
-  const nodeRadius = 10;
   const nodePositions = [
-    -nodeRadius,
-    -nodeRadius,
-    nodeRadius,
-    -nodeRadius,
-    -nodeRadius,
-    nodeRadius,
-    nodeRadius,
-    nodeRadius,
+    -graph.nodeRadius,
+    -graph.nodeRadius,
+    graph.nodeRadius,
+    -graph.nodeRadius,
+    -graph.nodeRadius,
+    graph.nodeRadius,
+    graph.nodeRadius,
+    graph.nodeRadius,
   ];
   const nodeTransform = graph.getNodePositions();
 
@@ -116,6 +115,8 @@ export async function initGraph(gl: WebGL2RenderingContext, areaID: number) {
       vao: nodeVAO,
       uniforms: nodeUniform,
       positions: nodePositions,
+      transform: nodeTransform,
+      radius: graph.nodeRadius,
     },
   };
 }

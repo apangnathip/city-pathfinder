@@ -8,6 +8,7 @@ export class Graph {
   travelled: Map<number, boolean>;
   activeNodes: number[];
   isNodeFound: boolean;
+  nodeRadius: number;
 
   constructor(elements: Element[]) {
     this.adjList = new Map();
@@ -16,6 +17,7 @@ export class Graph {
     this.travelled = new Map();
     this.activeNodes = [];
     this.isNodeFound = false;
+    this.nodeRadius = 2;
 
     System.setBounds(elements);
 

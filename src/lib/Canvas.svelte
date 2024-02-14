@@ -16,14 +16,14 @@
     system = new System(canvas);
 
     // default to monaco
-    let shaders = await initGraph(gl, 2220322);
+    let sdr = await initGraph(gl, 2220322);
 
     const updateShaders = async () => {
-      shaders = await initGraph(gl, System.getQuery().osm_id);
+      sdr = await initGraph(gl, System.getQuery().osm_id);
     };
 
     const animate = () => {
-      if (!gl || !canvas || !shaders) return;
+      if (!gl || !canvas || !sdr) return;
       requestAnimationFrame(animate);
 
       if (System.hasChangedQuery()) {
@@ -33,35 +33,32 @@
       handleMouse();
       gl.viewport(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-      gl.useProgram(shaders.edge.program);
+      gl.useProgram(sdr.edge.program);
 
-      gl.uniform2f(
-        shaders.edge.uniforms.resolution,
-        canvas.width,
-        canvas.height,
+      gl.uniform2f(sdr.edge.uniforms.resolution, canvas.width, canvas.height);
+
+      gl.uniform1f(sdr.edge.uniforms.scale, System.getScale());
+      gl.uniform2fv(sdr.edge.uniforms.translation, System.getOffset());
+      gl.uniform2fv(sdr.edge.uniforms.mouse, System.getMousePos());
+
+      gl.bindVertexArray(sdr.edge.vao);
+      gl.drawArrays(gl.LINES, 0, sdr.edge.positions.length / 2);
+
+      gl.useProgram(sdr.node.program);
+
+      gl.uniform2f(sdr.node.uniforms.resolution, canvas.width, canvas.height);
+      gl.uniform2fv(sdr.node.uniforms.translation, System.getOffset());
+      gl.uniform1f(sdr.node.uniforms.radius, sdr.node.radius);
+      gl.uniform1f(sdr.node.uniforms.scale, System.getScale());
+      gl.uniform2fv(sdr.node.uniforms.mouse, System.getMousePos());
+
+      gl.bindVertexArray(sdr.node.vao);
+      gl.drawArraysInstanced(
+        gl.TRIANGLE_STRIP,
+        0,
+        sdr.node.positions.length / 2,
+        sdr.node.transform.length / 2,
       );
-      gl.uniform1f(shaders.edge.uniforms.scale, System.getScale());
-      gl.uniform2fv(shaders.edge.uniforms.translation, System.getOffset());
-      gl.uniform2fv(shaders.edge.uniforms.mouse, System.getMousePos());
-
-      gl.bindVertexArray(shaders.edge.vao);
-      gl.drawArrays(gl.LINES, 0, shaders.edge.positions.length / 2);
-
-      // gl.useProgram(nodeProgram);
-      //
-      // gl.uniform2f(nodeUniform.resolution, canvas.width, canvas.height);
-      // gl.uniform2f(nodeUniform.translation, offset.x, offset.y);
-      // gl.uniform1f(nodeUniform.radius, nodeRadius);
-      // gl.uniform1f(nodeUniform.scale, mouse.scrollScale);
-      // gl.uniform2f(nodeUniform.mouse, mouse.x, mouse.y);
-      //
-      // gl.bindVertexArray(nodeVAO);
-      // gl.drawArraysInstanced(
-      //   gl.TRIANGLE_STRIP,
-      //   0,
-      //   nodePositions.length / 2,
-      //   nodeTransform.length / 2,
-      // );
     };
 
     animate();
